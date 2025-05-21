@@ -11,7 +11,7 @@ pub struct CompileConfig {
 impl CompileConfig {
     pub fn new() -> Self {
         CompileConfig {
-            contracts_dir: String::from("contracts"),
+            contracts_dir: String::from("contract"),
         }
     }
 }
@@ -19,7 +19,7 @@ impl CompileConfig {
 pub fn execute(_config: CompileConfig) -> Result<(), Box<dyn std::error::Error>> {
     // Get current working directory
     let current_dir = env::current_dir()?;
-    let contracts_dir = current_dir.join("contracts");
+    let contracts_dir = current_dir.join("contract");
 
     if !contracts_dir.exists() {
         return Err("No contracts directory found in current path".into());

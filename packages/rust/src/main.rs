@@ -10,15 +10,17 @@ const PROGRAM_NAME: &str = "partizee";
 
 #[derive(Debug)]
 enum Command {
-    New(String, Option<String>),  // dapp_name, output_dir
-    Compile,
-    Deploy,
+    New(String, Option<String>, HashMap<String, String>),  // dapp_name, output_dir, flags
+    Compile(String, HashMap<String, String>), // contract_name (if any), Hashmap of command flags
+    Deploy(String, HashMap<String, String>), // contract_name (if any), Hashmap of command flags
 }
 
 fn main() {
     let mut args = env::args();
-    // Skip program name
+    println!("{:?}", args);
     args.next();
+    // gather flags
+    let mut flags: HashMap<String, String> = HashMap::new();
 
     let command = match args.next() {
         Some(cmd) => match cmd.as_str() {
@@ -65,6 +67,10 @@ fn main() {
         eprintln!("❌ Error: {}", e);
         process::exit(1);
     }
+}
+
+fn is_flag(arg: &str) -> bool {
+    arg.starts_with("-")
 }
 
 fn show_usage(error: &str) {
