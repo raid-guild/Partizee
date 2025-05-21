@@ -6,7 +6,7 @@ use std::process;
 use commands::new::NewConfig;
 use commands::compile::CompileConfig;
 
-const PROGRAM_NAME: &str = "Partisia";
+const PROGRAM_NAME: &str = "partizee";
 
 #[derive(Debug)]
 enum Command {
