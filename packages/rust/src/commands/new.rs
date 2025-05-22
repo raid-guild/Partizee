@@ -6,6 +6,7 @@ use std::{
     io::Write,
 };
 use tera::{Context, Tera};
+use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub struct NewProject {
@@ -25,23 +26,27 @@ impl NewProject {
             dapp_name,
             output_dir: output_buf,
             project_root,
-            executable_root: env::current_exe().unwrap().parent().unwrap().to_path_buf(),
+            executable_root: env::current_dir().unwrap(), //env::current_exe().unwrap().parent().unwrap().to_path_buf(),
         }
     }
 
     pub fn create_project_directory(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let base_buff = self.output_dir.join("packages");
-        let rust_buff = base_buff.join("rust");
-        let contracts_buff = rust_buff.join("contracts");
-        let rust_test_buff = rust_buff.join("test");
-        let rust_src_buff = rust_buff.join("src");
-        let nodejs_buff = base_buff.join("nodejs");
-        fs::create_dir_all(&base_buff)?;
-        fs::create_dir_all(&rust_buff)?;
-        fs::create_dir_all(&contracts_buff)?;
-        fs::create_dir_all(&rust_test_buff)?;
-        fs::create_dir_all(&rust_src_buff)?;
-        fs::create_dir_all(&nodejs_buff)?;
+        let templates_dir = self.executable_root.join("templates");
+        for entry in WalkDir::new(&templates_dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_dir())
+        {
+            // Get the relative path from templates_dir
+            let rel_path = entry.path().strip_prefix(&templates_dir)?;
+            // Skip the root itself
+            if rel_path.as_os_str().is_empty() {
+                continue;
+            }
+            // Create the corresponding directory in the new project root
+            let new_dir = self.output_dir.join(rel_path);
+            fs::create_dir_all(&new_dir)?;
+        }
         self.print_project_structure();
         Ok(())
     }
@@ -63,11 +68,11 @@ impl NewProject {
         // Process template
         let mut context: Context = Context::new();
         context.insert("project_name", &self.dapp_name);
-        
-        let readme_template = fs::read_to_string(source_path.join(&clean_template_name))?;
+
+        let readme_template = fs::read_to_string(source_path.join(&template_name))?;
         
         let rendered = tera.render_str(&readme_template, &context)?;
-        
+
         // write the rendered template to the destination path
         fs::write(destination_path.join(&clean_template_name), rendered)?;
     
@@ -75,10 +80,28 @@ impl NewProject {
     }
 
     pub fn copy_all_files(&self) -> Result<(), Box<dyn std::error::Error>> {
-        self.copy_template(Some(&PathBuf::from("templates/")), Some(&self.output_dir), "README.md")?;
-        self.copy_template(Some(&PathBuf::from("templates/rust")), Some(&self.output_dir.join("packages/rust/contracts")), "counter.rs")?;
-        self.copy_template(Some(&PathBuf::from("templates/rust/src")), Some(&self.output_dir.join("packages/rust/src")), "main.rs")?;
-        self.copy_template(None, None, "Cargo.template.toml")?;
+        let templates_dir: PathBuf = self.executable_root.join("templates");
+        println!("Copying all files from templates directory: {}", templates_dir.display());
+        for entry in WalkDir::new(&templates_dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+        {
+            let rel_path = entry.path().strip_prefix(&templates_dir)?;
+            let dest_path = self.output_dir.join(rel_path);
+    
+            // Ensure parent directories exist
+            if let Some(parent) = dest_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+    
+            // Use your template logic if needed, or just copy the file
+            self.copy_template(
+                Some(entry.path().parent().unwrap()),
+                Some(dest_path.parent().unwrap()),
+                entry.file_name().to_str().ok_or("Invalid UTF-8 in file name")?,
+            )?;
+        }
         Ok(())
     }
 
