@@ -26,7 +26,6 @@ read_write_state_derive = { workspace = true }
 create_type_spec_derive = { workspace = true }
 pbc_zk = { workspace = true }
 serde_json = { workspace = true }
-imp = { workspace = true }
 getrandom = { workspace = true }
 
 [target.wasm32-unknown-unknown]
