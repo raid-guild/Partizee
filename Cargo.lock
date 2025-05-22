@@ -1547,6 +1547,7 @@ dependencies = [
  "pbc_zk",
  "read_write_rpc_derive",
  "read_write_state_derive",
+ "serde_json",
  "tera",
  "tokio",
  "tokio-test",
