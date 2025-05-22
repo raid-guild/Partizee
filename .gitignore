@@ -14,3 +14,5 @@ packages/nodejs/node_modules/
 
 node_modules/
 .env
+
+test_dapp/

@@ -27,6 +27,7 @@ create_type_spec_derive = { workspace = true }
 pbc_zk = { workspace = true }
 serde_json = { workspace = true }
 getrandom = { workspace = true }
+walkdir = "2.5.0"
 
 [target.wasm32-unknown-unknown]
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
