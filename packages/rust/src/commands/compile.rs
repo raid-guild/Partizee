@@ -1,22 +1,49 @@
-use std::env;
-use std::fs;
-use std::path::Path;
-use std::process::Command;
+use std::{
+    env,
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 #[derive(Debug)]
-pub struct CompileConfig {
-    pub contracts_dir: String,
+pub struct ProjectCompiler {
+    // the root of the project
+    pub project_root: PathBuf,
+    // extra files to include
+    pub files: Vec<PathBuf>,
 }
 
-impl CompileConfig {
-    pub fn new() -> Self {
-        CompileConfig {
-            contracts_dir: String::from("contract"),
-        }
+impl Default for ProjectCompiler {
+    #[inline]
+    fn default() -> Self{
+        Self::new()
     }
 }
 
-pub fn execute(_config: CompileConfig) -> Result<(), Box<dyn std::error::Error>> {
+impl ProjectCompiler {
+    /// create a new builder with default settings
+    pub fn new() -> Self {
+        Self {
+            project_root: PathBuf::new(),
+            files: Vec::new(),
+        }
+    }
+
+    /// Sets extra files to include, that are not necessarily in the project's source dir.
+    #[inline]
+    pub fn files(mut self, files: impl IntoIterator<Item = PathBuf>) -> Self {
+            self.files.extend(files);
+            self
+    }
+
+    pub fn compile_contracts(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let current_dir = env::current_dir()?;
+        let contracts_dir = current_dir.join("contract");
+        Ok(())
+    }
+}
+
+pub fn execute(_config: ProjectCompiler) -> Result<(), Box<dyn std::error::Error>> {
     // Get current working directory
     let current_dir = env::current_dir()?;
     let contracts_dir = current_dir.join("contract");

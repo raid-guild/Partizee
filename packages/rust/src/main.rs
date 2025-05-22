@@ -2,17 +2,20 @@ mod commands;
 
 use std::env;
 use std::process;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use commands::new::NewConfig;
-use commands::compile::CompileConfig;
+use commands::compile::ProjectCompiler;
+use commands::deploy::DeployConfig;
 
 const PROGRAM_NAME: &str = "partizee";
 
 #[derive(Debug)]
 enum Command {
-    New(String, Option<String>, HashMap<String, String>),  // dapp_name, output_dir, flags
-    Compile(String, HashMap<String, String>), // contract_name (if any), Hashmap of command flags
-    Deploy(String, HashMap<String, String>), // contract_name (if any), Hashmap of command flags
+    New(String, Option<String>),  // dapp_name, output_dir
+    Compile(String), // project_name
+    Deploy(String), // contract_name
 }
 
 fn main() {
@@ -35,8 +38,14 @@ fn main() {
                 let output_dir = args.next();
                 Command::New(dapp_name, output_dir)
             },
-            "compile" => Command::Compile,
-            "deploy" => Command::Deploy,
+            "compile" => {
+                let project_name = args.next().unwrap_or_default();
+                Command::Compile(project_name)
+            },
+            "deploy" => {
+                let contract_name = args.next().unwrap_or_default();
+                Command::Deploy(contract_name)
+            },
             _ => {
                 show_usage(&format!("Unknown command: {}", cmd));
                 process::exit(1);
@@ -53,13 +62,13 @@ fn main() {
             let config = NewConfig::new(dapp_name, output_dir);
             commands::new::execute(config)
         },
-        Command::Compile => {
-            let config = CompileConfig::new();
-            commands::compile::execute(config)
+        Command::Compile(project_name) => {
+            let project_compiler = ProjectCompiler::new();
+            commands::compile::execute(project_compiler)
         },
-        Command::Deploy => {
-            eprintln!("Deploy command not yet implemented");
-            process::exit(1);
+        Command::Deploy(contract_name) => {
+            let config = DeployConfig::new(PathBuf::from(contract_name));
+            commands::deploy::execute(config)
         }
     };
 
