@@ -1,6 +1,6 @@
 # {{project_name}}
 
-This project was bootstrapped with [Partisi](https://github.com/MrDeadCe11/partizee).
+This project was bootstrapped with [Partizee](https://github.com/raid-guild/partizee).
 
 ## Project Structure
 

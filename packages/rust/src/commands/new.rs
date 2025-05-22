@@ -69,9 +69,9 @@ impl NewProject {
         let mut context: Context = Context::new();
         context.insert("project_name", &self.dapp_name);
 
-        let readme_template = fs::read_to_string(source_path.join(&template_name))?;
+        let base_template = fs::read_to_string(source_path.join(&template_name))?;
         
-        let rendered = tera.render_str(&readme_template, &context)?;
+        let rendered = tera.render_str(&base_template, &context)?;
 
         // write the rendered template to the destination path
         fs::write(destination_path.join(&clean_template_name), rendered)?;
