@@ -58,14 +58,13 @@ impl NewProject {
 
         // clean up the template name to remove the .template extension if exists
         let clean_template_name: String = template_name.replace(".template", "");
-        let templates_dir = source_path.join("templates");
         let mut tera: Tera = Tera::default();
         
         // Process template
         let mut context: Context = Context::new();
         context.insert("project_name", &self.dapp_name);
         
-        let readme_template = fs::read_to_string(templates_dir.join(&clean_template_name))?;
+        let readme_template = fs::read_to_string(source_path.join(&clean_template_name))?;
         
         let rendered = tera.render_str(&readme_template, &context)?;
         

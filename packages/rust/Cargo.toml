@@ -7,7 +7,7 @@ description.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "Partizee"
+name = "partizee"
 path = "src/main.rs"
 
 [dependencies]
