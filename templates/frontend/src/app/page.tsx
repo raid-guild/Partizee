@@ -1,28 +1,18 @@
 "use client"
 
-import { usePartisia } from "@/context/partisia";
 import { useEffect } from "react";
+import { useConnect, useAccount, useSignMessage } from "@/hooks";
 
 export default function Home() {
-  const { sdk, connect, isConnected } = usePartisia();
+  const { isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { signMessage } = useSignMessage();
 
   useEffect(() => {
     if (isConnected) {
       console.log("Connected to Partisia");
     }
   }, [isConnected]);
-
-  async function signMessage(message: string) {
-    if (!isConnected) {
-      console.log("Not connected to Partisia");
-      return;
-    }
-    const res = await sdk.signMessage({
-      payload: message,
-      payloadType: 'utf8',
-    })
-    console.log(res);
-  }
   
   return (
     <div className="flex flex-col items-center justify-center h-screen">
@@ -34,8 +24,23 @@ export default function Home() {
         It includes some basic actions to help you get started. Try them out below.
       </p>
       <div className="flex flex-col gap-4 mt-8">
-        <button className="bg-blue-500 text-white p-2 rounded-md" onClick={() => connect()}>Connect Wallet</button>
-        <button className="bg-blue-500 text-white p-2 rounded-md" onClick={() => signMessage("Hello Partisia")}>Sign Message</button>
+        <button 
+          className="bg-blue-500 text-white p-2 rounded-md disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed" 
+          onClick={() => connect()}
+          disabled={isConnected}
+        >
+          Connect Wallet
+        </button>
+        <button 
+          className="bg-blue-500 text-white p-2 rounded-md disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed" 
+          onClick={() => signMessage({
+            payload: "Hello Partisia",
+            payloadType: "utf8",
+          })}
+          disabled={!isConnected}
+        >
+          Sign Message
+        </button>
       </div>
       <div className="flex flex-col gap-2 mt-12 text-sm justify-center items-center">
         <p>Don't have a Partisia wallet? Download one:</p>
