@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use crate::utils::utils::find_workspace_root;
 
 #[derive(Debug)]
 pub struct ProjectCompiler {
@@ -23,8 +24,9 @@ impl Default for ProjectCompiler {
 impl ProjectCompiler {
     /// create a new builder with default settings
     pub fn new() -> Self {
+        let project_root = find_workspace_root().unwrap();
         Self {
-            project_root: PathBuf::new(),
+            project_root,
             files: Vec::new(),
         }
     }
