@@ -1,28 +1,28 @@
 import { useMutation } from '@tanstack/react-query';
 import { usePartisia } from '@/context/partisia';
 
-export function useSignMessage() {
+export function useWriteContract() {
   const { sdk } = usePartisia();
 
   const mutation = useMutation({
     mutationFn: async (args: {
-      contract?: string;
+      contract: string;
       payload: string;
-      payloadType: "utf8" | "hex" | "hex_payload";
+      payloadType?: "utf8" | "hex" | "hex_payload";
       dontBroadcast?: boolean;
     }) => {
       await sdk.signMessage({
         contract: args.contract,
         payload: args.payload,
-        payloadType: args.payloadType,
-        dontBroadcast: args.dontBroadcast !== undefined ? args.dontBroadcast : true,
+        payloadType: args.payloadType ?? "hex_payload",
+        dontBroadcast: args.dontBroadcast !== undefined ? args.dontBroadcast : false,
       });
     },
   });
 
   return {
-    signMessage: mutation.mutate,
-    signMessageAsync: mutation.mutateAsync,
+    writeContract: mutation.mutate,
+    writeContractAsync: mutation.mutateAsync,
     ...mutation
   };
 }

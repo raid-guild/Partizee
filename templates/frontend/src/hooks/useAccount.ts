@@ -16,6 +16,7 @@ export function useAccount() {
   });
 
   return {
+    account: query.data?.connection?.account,
     connection: query.data?.connection,
     seed: query.data?.seed,
     isConnected: query.data?.isConnected,

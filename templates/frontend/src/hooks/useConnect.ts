@@ -6,6 +6,7 @@ import { PARTISIA_SDK_CONFIGS } from '@/utils/configs';
 export function useConnect() {
   const { sdk } = usePartisia();
   const queryClient = useQueryClient();
+  
   const mutation = useMutation({
     mutationFn: async (args?: {
       chainId?: string;
