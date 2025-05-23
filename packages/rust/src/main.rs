@@ -1,11 +1,10 @@
 mod commands;
 
-use std::env;
-use std::process;
-use std::collections::HashMap;
+use std::{env, process};
 use std::path::PathBuf;
+use std::error::Error;
 
-use commands::new::NewConfig;
+use commands::new::NewProject;
 use commands::compile::ProjectCompiler;
 use commands::deploy::DeployConfig;
 
@@ -18,17 +17,15 @@ enum Command {
     Deploy(String), // contract_name
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args();
     println!("{:?}", args);
     args.next();
-    // gather flags
-    let mut flags: HashMap<String, String> = HashMap::new();
-
+    
     let command = match args.next() {
         Some(cmd) => match cmd.as_str() {
             "new" => {
-                let dapp_name = match args.next() {
+                let project_name = match args.next() {
                     Some(name) => name,
                     None => {
                         show_usage("Dapp name is required for 'new' command");
@@ -36,7 +33,7 @@ fn main() {
                     }
                 };
                 let output_dir = args.next();
-                Command::New(dapp_name, output_dir)
+                Command::New(project_name, output_dir)
             },
             "compile" => {
                 let project_name = args.next().unwrap_or_default();
@@ -57,10 +54,11 @@ fn main() {
         }
     };
 
-    let result = match command {
+    let result: Result<(), Box<dyn Error + 'static>> = match command {
         Command::New(dapp_name, output_dir) => {
-            let config = NewConfig::new(dapp_name, output_dir);
-            commands::new::execute(config)
+            let new_project = NewProject::new(dapp_name, output_dir);
+            new_project.create_new_project()?;
+            Ok(())
         },
         Command::Compile(project_name) => {
             let project_compiler = ProjectCompiler::new();
@@ -75,6 +73,8 @@ fn main() {
     if let Err(e) = result {
         eprintln!("❌ Error: {}", e);
         process::exit(1);
+    } else {
+        Ok(())
     }
 }
 
