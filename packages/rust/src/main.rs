@@ -1,4 +1,5 @@
 mod commands;
+pub mod utils;
 
 use std::{env, process};
 use std::path::PathBuf;

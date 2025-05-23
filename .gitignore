@@ -10,7 +10,7 @@ target/
 *.pdb
 
 # Node.js
-packages/nodejs/node_modules/
+packages/frontend/node_modules/
 
 node_modules/
 .env

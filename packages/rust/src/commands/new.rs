@@ -115,7 +115,7 @@ impl NewProject {
         println!("🚀 Creating new Partisia dapp: {}", self.dapp_name);
         println!("📁 Project created at: {}", self.output_dir.display());
         println!("  └─ 📂 rust/  (Partisia smart contracts)");
-        println!("  └─ 📂 nodejs/  (Web 2 components)");
+        println!("  └─ 📂 frontend/  (Web 2 components)");
         println!("✨ Project scaffolding complete!");
         println!("\n📝 Next steps:");
         println!("  1. cd {}", self.output_dir.display());
