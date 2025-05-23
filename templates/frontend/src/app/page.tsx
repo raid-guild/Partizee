@@ -1,18 +1,27 @@
 "use client"
 
 import { useEffect } from "react";
-import { useConnect, useAccount, useSignMessage } from "@/hooks";
+import { partisiaCrypto } from "partisia-crypto";
+import { useConnect, useAccount, useSignMessage, useWriteContract } from "@/hooks";
+import { CONTRACT_ADDRESS } from "@/utils/configs";
 
 export default function Home() {
   const { isConnected } = useAccount();
   const { connect } = useConnect();
   const { signMessage } = useSignMessage();
+  const { writeContract } = useWriteContract();
 
   useEffect(() => {
     if (isConnected) {
       console.log("Connected to Partisia");
     }
   }, [isConnected]);
+
+  const abi = partisiaCrypto.abi_system.Payload_ContractAbi
+  const payload = partisiaCrypto.structs.serializeToBuffer({
+    counter: 0,
+    increment_amount: 5,
+  }, ...abi).toString("hex")
   
   return (
     <div className="flex flex-col items-center justify-center h-screen">
@@ -40,6 +49,16 @@ export default function Home() {
           disabled={!isConnected}
         >
           Sign Message
+        </button>
+        <button 
+          className="bg-blue-500 text-white p-2 rounded-md disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed" 
+          onClick={() => writeContract({
+            contract: CONTRACT_ADDRESS,
+            payload,
+          })}
+          disabled={!isConnected}
+        >
+          Write Contract
         </button>
       </div>
       <div className="flex flex-col gap-2 mt-12 text-sm justify-center items-center">
