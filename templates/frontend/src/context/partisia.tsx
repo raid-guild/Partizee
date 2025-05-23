@@ -9,9 +9,13 @@ interface PartisiaContextType {
 
 const PartisiaContext = createContext<PartisiaContextType | undefined>(undefined);
 
-export function PartisiaProvider({ children }: { children: ReactNode }) {
-  const sdk = new PartisiaSdk();
-
+export function PartisiaProvider({
+  children,
+  sdk,
+}: {
+  children: ReactNode;
+  sdk: PartisiaSdk;
+}) {
   return (
     <PartisiaContext.Provider value={{ sdk }}>
       {children}

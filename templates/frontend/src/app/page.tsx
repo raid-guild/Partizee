@@ -6,18 +6,29 @@ import { useConnect, useAccount, useSignMessage, useWriteContract } from "@/hook
 import { CONTRACT_ADDRESS } from "@/utils/configs";
 
 export default function Home() {
-  const { isConnected } = useAccount();
-  const { connect } = useConnect();
-  const { signMessage } = useSignMessage();
-  const { writeContract } = useWriteContract();
+  const { account, isConnected } = useAccount();
+  const { connect, error: connectError } = useConnect();
+  const { signMessage, error: signMessageError } = useSignMessage();
+  const { writeContract, error: writeContractError } = useWriteContract();
 
   useEffect(() => {
     if (isConnected) {
       console.log("Connected to Partisia");
     }
-  }, [isConnected]);
+    if (connectError) {
+      console.error(connectError);
+    }
+    if (signMessageError) {
+      console.error(signMessageError);
+    }
+    if (writeContractError) {
+      console.error(writeContractError);
+    }
+  }, [isConnected, connectError, signMessageError, writeContractError]);
 
   const abi = partisiaCrypto.abi_system.Payload_ContractAbi
+  // const abi = partisiaCrypto.transaction.getContractAbi(CONTRACT_ADDRESS, 0)
+  
   const payload = partisiaCrypto.structs.serializeToBuffer({
     counter: 0,
     increment_amount: 5,
@@ -33,6 +44,10 @@ export default function Home() {
         It includes some basic actions to help you get started. Try them out below.
       </p>
       <div className="flex flex-col gap-4 mt-8">
+        <div className="flex flex-col gap-2 justify-center items-center">
+          <p>Account:</p>
+          <p>{account?.address ? "✅ Connected" : "❌ Not connected"}</p>
+        </div>
         <button 
           className="bg-blue-500 text-white p-2 rounded-md disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed" 
           onClick={() => connect()}
