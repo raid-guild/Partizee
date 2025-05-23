@@ -11,6 +11,18 @@ export default function Home() {
       console.log("Connected to Partisia");
     }
   }, [isConnected]);
+
+  async function signMessage(message: string) {
+    if (!isConnected) {
+      console.log("Not connected to Partisia");
+      return;
+    }
+    const res = await sdk.signMessage({
+      payload: message,
+      payloadType: 'utf8',
+    })
+    console.log(res);
+  }
   
   return (
     <div className="flex flex-col items-center justify-center h-screen">
@@ -23,6 +35,7 @@ export default function Home() {
       </p>
       <div className="flex flex-col gap-4 mt-8">
         <button className="bg-blue-500 text-white p-2 rounded-md" onClick={() => connect()}>Connect Wallet</button>
+        <button className="bg-blue-500 text-white p-2 rounded-md" onClick={() => signMessage("Hello Partisia")}>Sign Message</button>
       </div>
       <div className="flex flex-col gap-2 mt-12 text-sm justify-center items-center">
         <p>Don't have a Partisia wallet? Download one:</p>
