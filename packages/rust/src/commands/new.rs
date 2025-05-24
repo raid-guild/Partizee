@@ -2,12 +2,11 @@ use std::{
     env,
     fs,
     path::{Path, PathBuf},
-    fs::File,
-    io::Write,
+    fs::copy
 };
 use tera::{Context, Tera};
 use walkdir::WalkDir;
-
+use crate::utils::utils::COPIABLE_EXTENSIONS;
 #[derive(Debug)]
 pub struct NewProject {
     pub dapp_name: String,
@@ -19,12 +18,14 @@ pub struct NewProject {
 
 impl NewProject {
     pub fn new(dapp_name: String, output_dir: Option<String>) -> Self {
-        let project_root = env::current_dir().unwrap();
-        let output_dir = output_dir.unwrap_or_else(|| format!("{}/", dapp_name.clone()));
-        let output_buf: PathBuf = output_dir.into();
+        // install project in current directory
+        let project_root: PathBuf = env::current_dir().unwrap();
+        // if output_dir is provided, use it, otherwise use the dapp_name to create a new directory
+        let output_dir: PathBuf  = output_dir.unwrap_or_else(|| format!("{}/", dapp_name.clone())).into();
+
         NewProject {
             dapp_name,
-            output_dir: output_buf,
+            output_dir,
             project_root,
             executable_root: env::current_dir().unwrap(), //env::current_exe().unwrap().parent().unwrap().to_path_buf(),
         }
@@ -63,8 +64,14 @@ impl NewProject {
 
         // clean up the template name to remove the .template extension if exists
         let clean_template_name: String = template_name.replace(".template", "");
-        let mut tera: Tera = Tera::default();
-        
+        // check if the file is a copiable extension otherwise use tera
+        if COPIABLE_EXTENSIONS.iter().any(|ext| clean_template_name.ends_with(ext)) {
+            // copy with fs
+            fs::copy(source_path.join(&template_name), destination_path.join(&clean_template_name))?;
+        } else {
+            // copy with tera
+            let mut tera: Tera = Tera::default();
+            
         // Process template
         let mut context: Context = Context::new();
         context.insert("project_name", &self.dapp_name);
@@ -73,8 +80,9 @@ impl NewProject {
         
         let rendered = tera.render_str(&base_template, &context)?;
 
-        // write the rendered template to the destination path
-        fs::write(destination_path.join(&clean_template_name), rendered)?;
+            // write the rendered template to the destination path
+            fs::write(destination_path.join(&clean_template_name), rendered)?;
+        }
     
         Ok(())
     }
@@ -94,7 +102,7 @@ impl NewProject {
             if let Some(parent) = dest_path.parent() {
                 fs::create_dir_all(parent)?;
             }
-    
+
             // Use your template logic if needed, or just copy the file
             self.copy_template(
                 Some(entry.path().parent().unwrap()),
@@ -145,3 +153,13 @@ fn copy_dir_contents(src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::E
     Ok(())  
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_copy_dir_contents() {
+        copy_dir_contents(&Path::new("/home/someguy/code/Partizee/packages/templates"), &Path::new("/home/someguy/code/Partizee/contract")).unwrap();
+    }
+}

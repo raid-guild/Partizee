@@ -1,6 +1,11 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    env,
+    fs,
+    path::{Path, PathBuf},
+};
+use std::sync::LazyLock;
 
+pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| vec![".js", ".jsx", ".ts", ".tsx", ".json", "ico", "png", "svg", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif", "ico", "cur", "ani", "avif", "heic", "heif", "webp"]);
 
 pub fn find_workspace_root() -> Option<PathBuf> {
     let mut dir = Some(env::current_dir().unwrap());
@@ -20,8 +25,20 @@ pub fn find_workspace_root() -> Option<PathBuf> {
                 }
             }
         }
-        dir = current.parent();
+        dir = Some(current.parent().unwrap().to_path_buf());
         depth += 1;
     }
     None
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_workspace_root() {
+        let workspace_root = find_workspace_root();
+        assert_eq!(workspace_root.unwrap().join("Cargo.toml").exists(), true);
+    }
 }

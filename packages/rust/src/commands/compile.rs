@@ -102,3 +102,4 @@ fn compile_contracts_in_dir(dir: &Path, compiled_count: &mut i32) -> Result<(), 
 
     Ok(())
 }
+
