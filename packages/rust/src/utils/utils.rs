@@ -1,11 +1,15 @@
+use std::sync::LazyLock;
 use std::{
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
-use std::sync::LazyLock;
 
-pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| vec![".js", ".jsx", ".ts", ".tsx", ".json", "ico", "png", "svg", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif", "ico", "cur", "ani", "avif", "heic", "heif", "webp"]);
+pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
+    vec![
+        ".js", ".jsx", ".ts", ".tsx", ".json", "ico", "png", "svg", "jpg", "jpeg", "gif", "webp",
+        "bmp", "tiff", "tif", "ico", "cur", "ani", "avif", "heic", "heif", "webp",
+    ]
+});
 
 pub fn find_workspace_root() -> Option<PathBuf> {
     let mut dir = Some(env::current_dir().unwrap());
@@ -30,7 +34,6 @@ pub fn find_workspace_root() -> Option<PathBuf> {
     }
     None
 }
-
 
 #[cfg(test)]
 mod tests {

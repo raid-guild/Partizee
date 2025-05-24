@@ -1,48 +1,95 @@
-use std::{
-    env,
-    fs,
-    path::{Path, PathBuf},
-    process::Command,
-};
+
+use crate::utils::menus::{compile_menu, CompileArgs};
 use crate::utils::utils::find_workspace_root;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::{Command, Output},
+};
 
 #[derive(Debug)]
 pub struct ProjectCompiler {
     // the root of the project
     pub project_root: PathBuf,
     // extra files to include
-    pub files: Vec<PathBuf>,
+    pub files: Option<Vec<String>>,
+    pub build_args: Option<Vec<String>>,
+    pub additional_args: Option<Vec<String>>,
 }
 
 impl Default for ProjectCompiler {
     #[inline]
     fn default() -> Self{
-        Self::new()
+        let args: CompileArgs = CompileArgs {
+            files: None,
+            build_args: None,
+            additional_args: None,
+        };
+        Self::new(args)
     }
 }
 
 impl ProjectCompiler {
     /// create a new builder with default settings
-    pub fn new() -> Self {
-        let project_root = find_workspace_root().unwrap();
+    pub fn new(args: CompileArgs) -> Self {
+        let project_root: PathBuf = find_workspace_root().unwrap_or_else(|| env::current_dir().unwrap());
+        // if files is not None, convert files to PathBuf
+      
         Self {
             project_root,
-            files: Vec::new(),
-        }
-    }
-
-    /// Sets extra files to include, that are not necessarily in the project's source dir.
-    #[inline]
-    pub fn files(mut self, files: impl IntoIterator<Item = PathBuf>) -> Self {
-            self.files.extend(files);
-            self
+            files: args.files,
+            build_args: args.build_args,
+            additional_args: args.additional_args,
+        }   
     }
 
     pub fn compile_contracts(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let current_dir = env::current_dir()?;
-        let contracts_dir = current_dir.join("contract");
+        let mut output: Output;
+        let mut args = vec!["pbc", "build", "--release"];
+
+        // gather build args and additional args
+        if !self.build_args.is_none() {
+            args.extend(self.build_args.as_ref().unwrap().iter().map(|arg| arg.as_str()));
+        }
+        if !self.additional_args.is_none() {
+            args.extend(self.additional_args.as_ref().unwrap().iter().map(|arg| arg.as_str()));
+        }
+
+        // if files is not None, compile the files
+        if self.files.is_none() {
+            // compile all contracts in the contracts directory add compiler args and build args
+                output = Command::new("cargo")
+                .args(&args)
+                .output()?;
+    
+            // else compile all contracts in the specified files
+            if output.status.success() {
+                print_success_message("all contracts");
+            } else {
+                print_error_message("all contracts", String::from_utf8_lossy(&output.stderr).as_ref());
+            }
+        } else {
+            for file in self.files.as_ref().unwrap() {
+                output = Command::new("cargo")
+                    .args(&args)
+                    .output()?;
+                if output.status.success() {
+                    print_success_message(file);
+                } else {
+                    print_error_message(file, String::from_utf8_lossy(&output.stderr).as_ref());
+                }
+            }
+        }
         Ok(())
     }
+}
+
+pub fn print_success_message(file: &str) {
+    println!("✅ Successfully compiled {}", file);
+}
+
+pub fn print_error_message(file: &str, error: &str) {
+    eprintln!("❌ Failed to compile {}: {}", file, error);
 }
 
 pub fn execute(_config: ProjectCompiler) -> Result<(), Box<dyn std::error::Error>> {
