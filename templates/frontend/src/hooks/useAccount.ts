@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { usePartisia } from '@/context/partisia';
 
 export function useAccount() {

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { usePartisia } from '@/context/partisia';
 import { PermissionTypes } from '@/types/partisia';
 import { PARTISIA_SDK_CONFIGS } from '@/utils/configs';

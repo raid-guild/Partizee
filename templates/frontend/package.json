@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@partisiablockchain/abi-client": "^5.190.0",
+    "@partisiablockchain/blockchain-api-transaction-client": "^5.134.0",
     "@tanstack/react-query": "^5.76.2",
     "next": "15.3.2",
     "partisia-crypto": "^1.0.19",
