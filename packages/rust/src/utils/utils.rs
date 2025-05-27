@@ -6,8 +6,8 @@ use std::{
 
 pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     vec![
-        ".js", ".jsx", ".ts", ".tsx", ".json", "ico", "png", "svg", "jpg", "jpeg", "gif", "webp",
-        "bmp", "tiff", "tif", "ico", "cur", "ani", "avif", "heic", "heif", "webp",
+        ".js", ".jsx", ".ts", ".tsx", ".json", ".ico", ".png", ".svg", ".jpg", ".jpeg", ".gif", ".webp",
+        ".bmp", ".tiff", ".tif", ".ico", ".cur", ".ani", ".avif", ".heic", ".heif", ".webp",
     ]
 });
 

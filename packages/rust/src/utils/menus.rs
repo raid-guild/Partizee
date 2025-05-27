@@ -45,7 +45,7 @@ pub fn new_project_menu() -> Result<ProjectConfig, Box<dyn std::error::Error>> {
 }
 
 pub fn compile_menu() -> Result<CompileArgs, Box<dyn std::error::Error>> {
-    let use_menu = confirm("Would you like to specify which contracts to compile? (if No: we'll compile all contracts in the contracts directory with default settings)")
+    let use_file_menu = confirm("Would you like to specify which contracts to compile? (if No: we'll compile all contracts in the contracts directory with default settings)")
     .initial_value(false)
     .interact()?;
 
@@ -53,7 +53,7 @@ pub fn compile_menu() -> Result<CompileArgs, Box<dyn std::error::Error>> {
     let mut additional_args_vec: Vec<String> = Vec::new();
     let mut files_vec: Vec<String> = Vec::new();
     
-    if use_menu {
+    if use_file_menu {
         loop {
             let file_to_compile: String = input("Enter the path to a Cargo.toml of the contract to compile")
                 .placeholder("contracts/counter/Cargo.toml")
@@ -90,32 +90,44 @@ pub fn compile_menu() -> Result<CompileArgs, Box<dyn std::error::Error>> {
                 break;
             }
         }
+    }
 
-        let add_build_args = confirm(
-            "Would you like to specify Build arguments? \n 
-        (if No: we'll compile all contracts in the contracts directory with default settings) \n
-        Options: \n
-        -r, --release                        Build artifacts in release mode, with optimizations \n
-        -n, --no-abi                         Skip generating .abi file \n
-        -q, --quiet                          No messages printed to stdout \n
-        -w, --no-wasm-strip                  Do not remove custom sections from the WASM-file (will produce a much larger file). \n
-        -z, --no-zk                          Only compile the public part of the contract. Skips compilation of ZK computation. \n
-        --disable-git-fetch-with-cli     Uses cargo's built-in git library to fetch dependencies instead of the git executable \n
-        --workspace                      Build all packages in the workspace \n
-        --coverage                       Compile an instrumented binary for the smart contract. This enables generation of coverage files. \n
-        -p, --package <PACKAGE>          Build only the specified packages \n
-        -h, --help                       Print help \n
+    let add_build_args = confirm(
+        "Would you like to specify Build arguments? \n 
+    (if No: we'll compile all contracts in the contracts directory with default settings) \n
+    Options: \n
+    -r, --release                        Build artifacts in release mode, with optimizations \n
+    -n, --no-abi                         Skip generating .abi file \n
+    -q, --quiet                          No messages printed to stdout \n
+    -w, --no-wasm-strip                  Do not remove custom sections from the WASM-file (will produce a much larger file). \n
+    -z, --no-zk                          Only compile the public part of the contract. Skips compilation of ZK computation. \n
+    --disable-git-fetch-with-cli     Uses cargo's built-in git library to fetch dependencies instead of the git executable \n
+    --workspace                      Build all packages in the workspace \n
+    --coverage                       Compile an instrumented binary for the smart contract. This enables generation of coverage files. \n
+    -p, --package <PACKAGE>          Build only the specified packages \n
+    -h, --help                       Print help \n
 ",
-        )
-        .initial_value(false)
-        .interact()?;
+    )
+    .initial_value(false)
+    .interact()?;
+
+    
+        const AVAILABLE_FLAGS: &[&'static str; 17] = &["-r", "--release", "-n", "--no-abi", "-q", "--quiet", "-w", "--no-wasm-strip", "-z", "--no-zk", "--disable-git-fetch-with-cli", "--workspace", "--coverage", "-p", "--package", "-h", "--help"];
 
         if add_build_args {
             loop {
                 let input_arg: String = input("Enter build argument ")
                     .placeholder("--help")
+                    .validate(|input: &String| {
+                        let input_arg = input.trim().to_string();
+                        if AVAILABLE_FLAGS.iter().any(|flag| input_arg.contains(flag)) {
+                            Ok(())
+                        } else {
+                            Err("Invalid build argument")
+                        }
+                    })
                     .interact()?;
-                println!("input arg: {:#?}", &input_arg);
+
                 if !input_arg.trim().is_empty() {
                     build_args_vec.push(input_arg);
                 }
@@ -155,7 +167,7 @@ pub fn compile_menu() -> Result<CompileArgs, Box<dyn std::error::Error>> {
                 }
             }
         }
-    }
+        
     let files: Option<Vec<String>> = if files_vec.len() > 0 {
         Some(files_vec)
     } else {

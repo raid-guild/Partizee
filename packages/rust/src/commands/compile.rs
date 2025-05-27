@@ -71,11 +71,10 @@ impl ProjectCompiler {
                 let mut new_args = args.clone();
                 new_args.push(String::from("--manifest-path"));
                 new_args.push(file.to_string());
-                println!("new_args: {:?}", new_args);
                 output = Command::new("cargo")
                     .args(&new_args)
                     .output()?;
-                println!("output: {:?}", &output);
+                
                 if output.status.success() {
                     print_success_message(file);
                 } else {

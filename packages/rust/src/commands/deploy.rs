@@ -3,15 +3,19 @@
 // --pk ./Account-A.pk --gas=10000000
 
 use std::path::PathBuf;
-
+use std::env::current_dir;
 pub struct DeployConfig {
+    pub project_root: PathBuf,
     pub contract_path: PathBuf,
     pub network: String,
 }
 
 impl DeployConfig {
-    pub fn new(contract_path: PathBuf) -> Self {
+    pub fn new(deploy_config: DeployConfig) -> Self {
+        let project_root = deploy_config.project_root.is_empty() ?             ? current_dir().unwrap()
+            : deploy_config.project_root;
         Self {
+            project_root: project_root,
             contract_path,
             network: String::from("testnet"), // default to testnet
         }
