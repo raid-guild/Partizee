@@ -198,7 +198,7 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
     let network: Option<String>;
     let path: Option<PathBuf>;
     let project_root: Option<PathBuf>;
-
+    let mut deployer_args_vec: Vec<String> = Vec::new();
     if config.network.is_none() {
         let custom_network: String = input("Enter the network to deploy to: testnet, mainnet")
         .placeholder("testnet")
@@ -239,12 +239,41 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
         path = config.contract_path;
     };
 
+    if config.deployer_args.is_none() {
+        let add_deployer_args = confirm("Would you like to specify deployer arguments? (if No: we'll use the default arguments)")
+        .initial_value(false)
+        .interact()?;
+
+        if add_deployer_args {
+        loop {
+            let deployer_arg: String = input("Enter deployer argument")
+            .placeholder("pbc cli arg")
+            .interact()?;
+            if !deployer_arg.trim().is_empty() {
+                deployer_args_vec.push(deployer_arg);
+            }
+            let another: bool = confirm("Enter another argument? (y/n)")
+                .initial_value(false)
+                .interact()?;
+                if !another {
+                    break;
+                }
+            }
+        }
+    }
+
     if config.project_root.is_none() {
         project_root = find_workspace_root();
     } else {
         project_root = config.project_root;
     };  
 
+    let deployer_args: Option<Vec<String>> = if deployer_args_vec.len() > 0 {
+        Some(deployer_args_vec)
+    } else {
+        None
+    };
+
    
-    Ok(DeployProject { network: network, contract_path: path, project_root: project_root })
+    Ok(DeployProject { network: network, contract_path: path, project_root: project_root, deployer_args: deployer_args })
 }

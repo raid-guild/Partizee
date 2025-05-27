@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // create a new DeployProject with the provided args
                     let deploy_project = DeployProject::new(menu_args);
                     // deploy the contract
-                    deploy_project.deploy_contract()?;
+                    deploy_project.deploy_contracts()?;
                 }
             }
         }

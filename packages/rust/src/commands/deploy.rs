@@ -38,5 +38,10 @@ impl DeployProject {
             deployer_args: deploy_config.deployer_args,
         }
     }
+
+    pub fn deploy_contracts(&self) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Deploying contract...");
+        Ok(())
+    }
 }
 
