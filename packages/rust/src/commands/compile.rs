@@ -42,27 +42,13 @@ impl ProjectCompiler {
         }   
     }
 
-    fn gather_build_args<'a>(&self, args: &'a mut Vec<String>) -> &'a mut Vec<String> {
-        if !self.build_args.is_none() {
-            args.extend(self.build_args.as_ref().unwrap().iter().map(|arg| arg.to_string()));
-        }
-        args
-    }
-
-    fn gather_additional_args<'a>(&self, args: &'a mut Vec<String>) -> &'a mut Vec<String> {
-        if !self.additional_args.is_none() {
-            args.extend(self.additional_args.as_ref().unwrap().iter().map(|arg| arg.to_string()))
-        }
-        args
-    }
-
     pub fn compile_contracts(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut output: Output;
         let mut args = vec![String::from("pbc"), String::from("build"), String::from("--release")];
 
         // gather build args and additional args
-       self.gather_build_args(&mut args);
-       self.gather_additional_args(&mut args);
+       extend_args(&mut args, self.build_args.as_ref());
+       extend_args(&mut args, self.additional_args.as_ref());
 
         // if files is not None, compile the files
         if self.files.is_none() {
@@ -85,10 +71,11 @@ impl ProjectCompiler {
                 let mut new_args = args.clone();
                 new_args.push(String::from("--manifest-path"));
                 new_args.push(file.to_string());
-
+                println!("new_args: {:?}", new_args);
                 output = Command::new("cargo")
                     .args(&new_args)
                     .output()?;
+                println!("output: {:?}", &output);
                 if output.status.success() {
                     print_success_message(file);
                 } else {
@@ -98,6 +85,13 @@ impl ProjectCompiler {
         }
         Ok(())
     }
+}
+
+fn extend_args<'a>(base_args:&'a mut Vec<String>, new_args: Option<&Vec<String>>) -> &'a mut Vec<String> {
+    if new_args.is_some() {
+        base_args.extend(new_args.unwrap().iter().map(|arg| arg.to_string()));
+    }
+    base_args
 }
 
 pub fn print_success_message(file: &str) {

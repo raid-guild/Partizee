@@ -154,38 +154,3 @@ impl NewProject {
         println!("  2. Follow the setup instructions in contract/README.md and frontend/README.md");
     }
 }
-
-fn copy_dir_contents(src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    if !src.is_dir() {
-        return Err("Source path is not a directory".into());
-    }
-
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        let dest_path = dst.join(path.file_name().ok_or("Invalid file name")?);
-
-        if path.is_dir() {
-            fs::create_dir_all(&dest_path)?;
-            copy_dir_contents(&path, &dest_path)?;
-        } else {
-            fs::copy(&path, &dest_path)?;
-        }
-    }
-
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_copy_dir_contents() {
-        copy_dir_contents(
-            &Path::new("/home/someguy/code/Partizee/packages/templates"),
-            &Path::new("/home/someguy/code/Partizee/contract"),
-        )
-        .unwrap();
-    }
-}
