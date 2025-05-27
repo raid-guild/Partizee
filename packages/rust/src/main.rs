@@ -1,9 +1,11 @@
 mod commands;
+pub mod utils;
 
-use std::{env, process};
+use clap::Parser;
 use std::path::PathBuf;
-use std::error::Error;
 
+use utils::clap_cli::{Cargo, Commands};
+use utils::menus::CompileArgs;
 use commands::new::NewProject;
 use commands::compile::ProjectCompiler;
 use commands::deploy::DeployConfig;
@@ -18,64 +20,47 @@ enum Command {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut args = env::args();
-    println!("{:?}", args);
-    args.next();
-    
-    let command = match args.next() {
-        Some(cmd) => match cmd.as_str() {
-            "new" => {
-                let project_name = match args.next() {
-                    Some(name) => name,
-                    None => {
-                        show_usage("Dapp name is required for 'new' command");
-                        process::exit(1);
-                    }
-                };
-                let output_dir = args.next();
-                Command::New(project_name, output_dir)
-            },
-            "compile" => {
-                let project_name = args.next().unwrap_or_default();
-                Command::Compile(project_name)
-            },
-            "deploy" => {
-                let contract_name = args.next().unwrap_or_default();
-                Command::Deploy(contract_name)
-            },
-            _ => {
-                show_usage(&format!("Unknown command: {}", cmd));
-                process::exit(1);
+    let cargo_cli: Cargo = Cargo::parse();
+
+    match cargo_cli {
+        Cargo::Partizee(args) => {
+            match args.commands {
+                Commands::New { name, output_dir, zero_knowledge } => {
+                    let new_project = NewProject::new(name, output_dir);
+                    // Pass zero_knowledge as needed
+                    new_project.create_new_project()?;
+                }
+                Commands::Compile { file, build_args, additional_args } => {
+                    // If no CLI args are provided, open the cliclack menu
+                    let compile_args = if file.is_none() && build_args.is_empty() && additional_args.is_empty() {
+                        // Use the interactive menu
+                        let menu_args = utils::menus::compile_menu()?;
+                        CompileArgs {
+                            files: menu_args.files,
+                            build_args: menu_args.build_args,
+                            additional_args: menu_args.additional_args,
+                        }
+                    } else {
+                        // Use CLI args
+                        CompileArgs {
+                            files: file.map(|f| vec![f]),
+                            build_args: if !build_args.is_empty() { Some(build_args) } else { None },
+                            additional_args: if !additional_args.is_empty() { Some(additional_args) } else { None },
+                        }
+                    };
+                    let project_compiler = ProjectCompiler::new(compile_args);
+                    project_compiler.compile_contracts()?;
+                }
+                Commands::Deploy { net, deployer_args } => {
+                    let config = DeployConfig::new(PathBuf::from(net.unwrap_or_else(|| "testnet".to_string())));
+                    // Pass deployer_args as needed
+                    commands::deploy::execute(config)?;
+                }
             }
-        },
-        None => {
-            show_usage("Command is required");
-            process::exit(1);
         }
-    };
-
-    let result: Result<(), Box<dyn Error + 'static>> = match command {
-        Command::New(dapp_name, output_dir) => {
-            let new_project = NewProject::new(dapp_name, output_dir);
-            new_project.create_new_project()?;
-            Ok(())
-        },
-        Command::Compile(project_name) => {
-            let project_compiler = ProjectCompiler::new();
-            commands::compile::execute(project_compiler)
-        },
-        Command::Deploy(contract_name) => {
-            let config = DeployConfig::new(PathBuf::from(contract_name));
-            commands::deploy::execute(config)
-        }
-    };
-
-    if let Err(e) = result {
-        eprintln!("❌ Error: {}", e);
-        process::exit(1);
-    } else {
-        Ok(())
     }
+
+    Ok(())
 }
 
 fn is_flag(arg: &str) -> bool {

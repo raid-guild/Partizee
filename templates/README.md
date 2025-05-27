@@ -11,7 +11,7 @@ This project was bootstrapped with [Partizee](https://github.com/raid-guild/part
 │   │   ├── contracts/  # Contract source files
 │   │   ├── src/        # Contract tests
 │   │   └── test/       # Contract tests
-│   └── nodejs/         # Frontend application
+│   └── frontend/         # Frontend application
 ```
 
 ## Getting Started
@@ -37,7 +37,7 @@ cargo test
 
 Navigate to the frontend directory:
 ```bash
-cd packages/nodejs
+cd packages/frontend
 ```
 
 Install dependencies:

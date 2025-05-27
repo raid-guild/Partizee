@@ -25,10 +25,19 @@ else
     BIN_DIR="$HOME/.local/bin"
 fi
 
+# Install cargo-partisia-contract if not already installed
+if ! command -v cargo pbc &> /dev/null; then
+    echo "Installing cargo-partisia-contract..."
+    cargo install cargo-partisia-contract
+else
+    echo "cargo-partisia-contract already installed."
+fi
+
+
 # Build
 cargo build --release --manifest-path Cargo.toml
 
-# Install
+# Install partizee
 mkdir -p "$BIN_DIR"
 cp "target/release/partizee$EXE_EXT" "$BIN_DIR/partizee$EXE_EXT"
 chmod +x "$BIN_DIR/partizee$EXE_EXT"
