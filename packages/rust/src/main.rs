@@ -5,10 +5,10 @@ use clap::Parser;
 use std::path::PathBuf;
 
 use utils::clap_cli::{Cargo, Commands};
-use utils::menus::CompileArgs;
+
 use commands::new::NewProject;
 use commands::compile::ProjectCompiler;
-use commands::deploy::DeployConfig;
+use commands::deploy::DeployProject;
 
 const PROGRAM_NAME: &str = "partizee";
 
@@ -30,31 +30,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Pass zero_knowledge as needed
                     new_project.create_new_project()?;
                 }
-                Commands::Compile { file, build_args, additional_args } => {
-                    // If no CLI args are provided, open the cliclack menu
-                    let compile_args = if file.is_none() && build_args.is_empty() && additional_args.is_empty() {
-                        // Use the interactive menu
-                        let menu_args = utils::menus::compile_menu()?;
-                        CompileArgs {
-                            files: menu_args.files,
-                            build_args: menu_args.build_args,
-                            additional_args: menu_args.additional_args,
-                        }
-                    } else {
-                        // Use CLI args
-                        CompileArgs {
-                            files: file.map(|f| vec![f]),
-                            build_args: if !build_args.is_empty() { Some(build_args) } else { None },
-                            additional_args: if !additional_args.is_empty() { Some(additional_args) } else { None },
-                        }
+                Commands::Compile { files_to_compile, build_args, additional_args } => {
+                    // create a new ProjectCompiler with the provided args
+                    let compile_args: ProjectCompiler = ProjectCompiler {
+                        project_root: None,
+                        files: if files_to_compile.is_some() { files_to_compile.map(|f| vec![f]) } else { None },
+                        build_args: if build_args.is_some() { build_args } else { None },
+                        additional_args: if additional_args.is_some() { additional_args } else { None },
                     };
-                    let project_compiler = ProjectCompiler::new(compile_args);
+                     // Use the interactive menu to get the compile args if none provided
+                        let menu_args = utils::menus::compile_menu(compile_args)?;
+
+                    // create a new ProjectCompiler with the provided args
+                    let project_compiler = ProjectCompiler::new(menu_args);
+                    // compile the contracts
                     project_compiler.compile_contracts()?;
                 }
-                Commands::Deploy { net, deployer_args } => {
-                    let config = DeployConfig::new(PathBuf::from(net.unwrap_or_else(|| "testnet".to_string())));
-                    // Pass deployer_args as needed
-                    commands::deploy::execute(config)?;
+                Commands::Deploy { custom_net, custom_path, custom_root, custom_deployer_args } => {
+                    let net = if custom_net.is_some() { Some(custom_net.unwrap()) } else { None };
+                    let path = if custom_path.is_some() { Some(PathBuf::from(custom_path.unwrap())) } else { None };
+                    let root = if custom_root.is_some() { Some(PathBuf::from(custom_root.unwrap())) } else { None };
+                    let deployer_args = if custom_deployer_args.is_some() { Some(custom_deployer_args.unwrap()) } else { None };
+
+                    // create a new DeployProject with the provided args    
+                    let config = DeployProject {
+                        network: net,
+                        contract_path: path,
+                        project_root: root,
+                        deployer_args: deployer_args,
+                    };
+
+                    // get options from interactive menu and pass deployer_args as needed
+                    let menu_args = utils::menus::deploy_menu(config)?;
+                    // create a new DeployProject with the provided args
+                    let deploy_project = DeployProject::new(menu_args);
+                    // deploy the contract
+                    deploy_project.deploy_contract()?;
                 }
             }
         }

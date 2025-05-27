@@ -1,5 +1,5 @@
 
-use crate::utils::menus::{compile_menu, CompileArgs};
+use crate::utils::menus::{compile_menu};
 use crate::utils::utils::find_workspace_root;
 use std::{
     env, fs,
@@ -10,17 +10,19 @@ use std::{
 #[derive(Debug)]
 pub struct ProjectCompiler {
     // the root of the project
-    pub project_root: PathBuf,
+    pub project_root: Option<PathBuf>,
     // extra files to include
     pub files: Option<Vec<String>>,
     pub build_args: Option<Vec<String>>,
     pub additional_args: Option<Vec<String>>,
 }
 
+
 impl Default for ProjectCompiler {
     #[inline]
     fn default() -> Self{
-        let compile_args: CompileArgs = CompileArgs {
+        let compile_args: ProjectCompiler = ProjectCompiler {
+            project_root: None,
             files: None,
             build_args: None,
             additional_args: None,
@@ -31,11 +33,15 @@ impl Default for ProjectCompiler {
 
 impl ProjectCompiler {
     /// create a new builder with default settings
-    pub fn new(compile_args: CompileArgs) -> Self {
-        let project_root: PathBuf = find_workspace_root().unwrap_or_else(|| env::current_dir().unwrap());
+    pub fn new(compile_args: ProjectCompiler) -> Self {
+        let project_root: PathBuf = if compile_args.project_root.is_none() {
+            find_workspace_root().unwrap_or_else(|| env::current_dir().unwrap())
+        } else {
+            compile_args.project_root.unwrap()
+        };
         // if files is not None, convert files to PathBuf
         Self {
-            project_root,
+            project_root: Some(project_root),
             files: compile_args.files,
             build_args: compile_args.build_args,
             additional_args: compile_args.additional_args,

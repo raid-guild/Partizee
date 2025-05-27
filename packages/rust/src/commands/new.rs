@@ -5,7 +5,7 @@ use std::{
 use tera::{Context, Tera};
 use walkdir::WalkDir;
 
-use crate::utils::menus::{new_project_menu, ProjectConfig};
+use crate::utils::menus::new_project_menu;
 use crate::utils::utils::COPIABLE_EXTENSIONS;
 
 #[derive(Debug)]
@@ -16,6 +16,12 @@ pub struct NewProject {
     pub project_root: PathBuf,
     pub executable_root: PathBuf,
 }
+
+pub struct ProjectConfig {
+    pub name: String,
+    pub output_dir: Option<String>,
+}
+
 
 impl NewProject {
     pub fn new(dapp_name: Option<String>, output_dir: Option<String>) -> Self {

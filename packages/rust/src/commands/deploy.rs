@@ -4,25 +4,39 @@
 
 use std::path::PathBuf;
 use std::env::current_dir;
-pub struct DeployConfig {
-    pub project_root: PathBuf,
-    pub contract_path: PathBuf,
-    pub network: String,
+pub struct DeployProject {
+    pub project_root: Option<PathBuf>,
+    pub contract_path: Option<PathBuf>,
+    pub network: Option<String>,       
+    pub deployer_args: Option<Vec<String>>,
 }
 
-impl DeployConfig {
-    pub fn new(deploy_config: DeployConfig) -> Self {
-        let project_root = deploy_config.project_root.is_empty() ?             ? current_dir().unwrap()
-            : deploy_config.project_root;
+impl DeployProject {
+    pub fn new(deploy_config: DeployProject) -> Self {
+        let project_root = if deploy_config.project_root.is_none() {
+            current_dir().unwrap()
+        } else {
+            deploy_config.project_root.unwrap()
+        };
+
+        let contract_path = if deploy_config.contract_path.is_none() {
+            PathBuf::from("target/wasm32-unknown-unknown/release/")
+        } else {
+            deploy_config.contract_path.unwrap()
+        };
+
+        let network = if deploy_config.network.is_none() {
+            String::from("testnet")
+        } else {
+            deploy_config.network.unwrap()
+        };
+
         Self {
-            project_root: project_root,
-            contract_path,
-            network: String::from("testnet"), // default to testnet
+            project_root: Some(project_root),
+            contract_path: Some(contract_path),
+            network: Some(network),
+            deployer_args: deploy_config.deployer_args,
         }
     }
 }
 
-pub fn execute(_config: DeployConfig) -> Result<(), Box<dyn std::error::Error>> {
-    println!("⚠️  Deploy command not yet implemented");
-    Ok(())
-}

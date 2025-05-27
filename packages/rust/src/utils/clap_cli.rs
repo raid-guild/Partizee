@@ -67,9 +67,11 @@ pub enum Commands {
         #[clap(
             long = "file",
             short = 'f',
-            help = "Specify a specific file to compile"
+            help = "Specify specific files to compile",
+            num_args = 1..,
+            allow_hyphen_values = true
         )]
-        file: Option<String>,
+        files_to_compile: Option<String>,
 
         #[clap(
             long = "build-args",
@@ -79,16 +81,16 @@ pub enum Commands {
             num_args = 1..,
             allow_hyphen_values = true
             )]
-            build_args: Vec<String>,
+            build_args: Option<Vec<String>>,
 
         #[clap(
             long = "additional-args",
             short = 'c',
             help = "Additional arguments that will be passed along to compile cli command",
-            num_args = 0..,
+            num_args = 1..,
             allow_hyphen_values = true
             )]
-        additional_args: Vec<String>,
+        additional_args: Option<Vec<String>>,
     },
 
     #[clap(about = "deploy your dapp")]
@@ -98,13 +100,25 @@ pub enum Commands {
             short = 'n',
             long = "net"
         )]
-        net: Option<String>,
+        custom_net: Option<String>,
+        #[clap(
+            help = "enter the path to the contract to deploy",
+            short = 'p',
+            long = "path"
+        )]
+        custom_path: Option<String>,
+        #[clap(
+            help = "path to the project root",
+            short = 'r',
+            long = "root"
+        )]
+        custom_root: Option<String>,
         #[clap(
           help = "additional deployer arguments to pass to deploy cli command",
           short = 'd',
           long = "deployer-args",
-          num_args = 1..,
+          num_args = 0..,
           allow_hyphen_values = true)]
-        deployer_args: Vec<String>,
+        custom_deployer_args: Option<Vec<String>>,
     },
 }
