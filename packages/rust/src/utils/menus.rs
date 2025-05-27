@@ -57,6 +57,28 @@ pub fn compile_menu() -> Result<CompileArgs, Box<dyn std::error::Error>> {
         loop {
             let file_to_compile: String = input("Enter the path to a Cargo.toml of the contract to compile")
                 .placeholder("contracts/counter/Cargo.toml")
+                .validate(|input: &String| {
+                    let path = std::path::Path::new(input);
+                    if !path.exists() {
+                        Err("File does not exist")
+                    } else if !path.is_file() {
+                        Err("Path is not a file")
+                    } else if path.file_name().map_or(true, |name| name != "Cargo.toml") {
+                        Err("File must be named Cargo.toml")
+                    } else {
+                        // Optionally, check for [package] section
+                        let content = std::fs::read_to_string(path);
+                        if let Ok(content) = content {
+                            if content.contains("[package]") {
+                                Ok(())
+                            } else {
+                                Err("Cargo.toml does not contain a [package] section")
+                            }
+                        } else {
+                            Err("Could not read file")
+                        }
+                    }
+                })
                 .interact()?;
             if !file_to_compile.trim().is_empty() {
                 files_vec.push(file_to_compile);
@@ -93,12 +115,16 @@ pub fn compile_menu() -> Result<CompileArgs, Box<dyn std::error::Error>> {
                 let input_arg: String = input("Enter build argument ")
                     .placeholder("--help")
                     .interact()?;
+                println!("input arg: {:#?}", &input_arg);
                 if !input_arg.trim().is_empty() {
                     build_args_vec.push(input_arg);
                 }
                 let another: bool = confirm("Enter another argument?")
                     .initial_value(false)
                     .interact()?;
+
+                
+                println!("build args: {:#?}", &build_args_vec);
                 if !another {
                     break;
                 }

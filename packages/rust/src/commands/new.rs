@@ -144,7 +144,7 @@ impl NewProject {
     }
 
     pub fn print_project_structure(&self) {
-        println!("🚀 Creating new Partisia dapp: {}", self.dapp_name);
+        println!("\n \n \n \n");
         println!("📁 Project created at: {}", self.output_dir.display());
         println!("  └─ 📂 rust/  (Partisia smart contracts)");
         println!("  └─ 📂 frontend/  (Web 2 components)");
