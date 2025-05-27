@@ -1,49 +1,23 @@
 'use client'
 
-import { createContext, useContext, ReactNode, useState } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import PartisiaSdk from 'partisia-sdk';
-
-import { PARTISIA_SDK_CONFIGS } from '@/utils/configs';
-import { PermissionTypes } from '@/types/partisia';
 
 interface PartisiaContextType {
   sdk: PartisiaSdk;
-  connect: (args?: {
-    chainId?: string;
-    permissions?: PermissionTypes[];
-    dappName?: string;
-  }) => Promise<void>;
-  isConnected: boolean;
 }
 
 const PartisiaContext = createContext<PartisiaContextType | undefined>(undefined);
 
-export function PartisiaProvider({ children }: { children: ReactNode }) {
-  const [isConnected, setIsConnected] = useState(false);
-  
-  const sdk = new PartisiaSdk();
-
-  const connect = async (args?: {
-    chainId?: string;
-    permissions?: PermissionTypes[];
-    dappName?: string;
-  }) => {
-    try {
-      await sdk.connect({
-        chainId: args?.chainId || PARTISIA_SDK_CONFIGS.chainId,
-        permissions: args?.permissions || PARTISIA_SDK_CONFIGS.permissions,
-        dappName: args?.dappName || PARTISIA_SDK_CONFIGS.dappName,
-      });
-      setIsConnected(true);
-    } catch (error) {
-      console.error('Failed to connect to Partisia:', error);
-      setIsConnected(false);
-      throw error;
-    }
-  };
-
+export function PartisiaProvider({
+  children,
+  sdk,
+}: {
+  children: ReactNode;
+  sdk: PartisiaSdk;
+}) {
   return (
-    <PartisiaContext.Provider value={{ sdk, connect, isConnected }}>
+    <PartisiaContext.Provider value={{ sdk }}>
       {children}
     </PartisiaContext.Provider>
   );

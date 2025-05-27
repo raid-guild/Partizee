@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.76.2",
     "next": "15.3.2",
     "partisia-crypto": "^1.0.19",
     "partisia-rpc": "^1.0.9",
