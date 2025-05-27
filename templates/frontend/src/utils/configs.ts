@@ -8,3 +8,6 @@ export const PARTISIA_SDK_CONFIGS = {
   permissions: [PermissionTypes.SIGN],
   dappName: "Partisia Dapp Template",
 };
+
+// Contract Configs
+export const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000"

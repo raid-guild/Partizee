@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { PartisiaProvider } from "@/context/partisia";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "Partisia Dapp Template",
@@ -15,9 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <PartisiaProvider>
+        <Providers>
           {children}
-        </PartisiaProvider>
+        </Providers>
       </body>
     </html>
   );
