@@ -84,6 +84,7 @@ impl ProjectCompiler {
                 if output.status.success() {
                     print_success_message(file);
                 } else {
+                    println!("{:#?}", &output);
                     print_error_message(file, String::from_utf8_lossy(&output.stderr).as_ref());
                 }
             }
