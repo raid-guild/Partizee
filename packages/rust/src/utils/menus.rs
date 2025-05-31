@@ -4,6 +4,7 @@ use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployProject;
 use crate::utils::utils::find_workspace_root;
 use std::path::PathBuf;
+use crate::commands::account::Account;
 
 pub fn new_project_menu() -> Result<ProjectConfig, Box<dyn std::error::Error>> {
     intro("Partizee - Create a new Partisia Blockchain project")?;
@@ -200,8 +201,9 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
     let project_root: Option<PathBuf>;
     let mut deployer_args_vec: Vec<String> = Vec::new();
     if config.network.is_none() {
-        let custom_network: String = input("Enter the network to deploy to: testnet, mainnet")
+        let custom_network: String = input("Enter the network to deploy to eg. testnet, mainnet")
         .placeholder("testnet")
+        .default_input("testnet")
         .interact()?;
 
         network = if !custom_network.trim().is_empty() {
@@ -275,5 +277,10 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
     };
 
    
-    Ok(DeployProject { network: network, contract_path: path, project_root: project_root, deployer_args: deployer_args })
+    Ok(DeployProject { network: network, contract_path: path, project_root: project_root, deployer_args: deployer_args, account: None })
+}
+
+pub fn account_menu() -> Result<Account, Box<dyn std::error::Error>> {
+    let account: Account = Account::new(None);
+    Ok(account)
 }

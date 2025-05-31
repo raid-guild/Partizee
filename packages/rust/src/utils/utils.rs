@@ -3,6 +3,7 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
 };
+use std::process::Output;
 
 pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     vec![
@@ -34,6 +35,15 @@ pub fn find_workspace_root() -> Option<PathBuf> {
     }
     None
 }
+
+pub fn print_output(output: &Output) {
+    eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
+}
+
+pub fn print_error(output: &Output) {
+    eprintln!("STDERR:\n{}", String::from_utf8_lossy(&output.stderr));
+}
+
 
 #[cfg(test)]
 mod tests {

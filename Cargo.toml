@@ -26,6 +26,8 @@ read_write_state_derive = { git = "https://git@gitlab.com/partisiablockchain/lan
 create_type_spec_derive = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }
 pbc_zk = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }
 serde_json = "1.0.140"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = "0.3.3"
+dirs = "6.0.0"
+walkdir = "2.5.0"
 
 
