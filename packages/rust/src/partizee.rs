@@ -3,11 +3,12 @@ use clap::Parser;
 
 use std::path::PathBuf;
 
-use crate::utils::clap_cli::{Cargo, Commands};
+use crate::utils::clap_cli::{Cargo, Commands, AccountSubcommands, AccountSharedArgs};
 use crate::utils::menus::{compile_menu, deploy_menu};
 use crate::commands::new::NewProject;
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployProject;
+use crate::commands::account::Account;
 
 pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
     let cargo_cli: Cargo = Cargo::parse();
@@ -48,6 +49,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                         contract_path: path,
                         project_root: root,
                         deployer_args: deployer_args,
+                        account_path: None,
                         account: None,
                     };
 
@@ -57,7 +59,27 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     let deploy_project: DeployProject = DeployProject::new(menu_args);
                     // deploy the contract
                     deploy_project.deploy_contracts()?;
+                },
+                Commands::Account { commands } => match commands {
+                    AccountSubcommands::AccountCreate { shared_args } => {
+                        if shared_args.interactive {
+                            let account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
+                            account.create_account(shared_args.network.as_deref()); 
+                        } else {
+                            let account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
+                            account.create_account(shared_args.network.as_deref()); 
+                        }
+                    },
+                    AccountSubcommands::AccountShow { shared_args } => {
+                        let account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
+                        account.show_account(shared_args.network.as_deref());
+                    },
+                    AccountSubcommands::AccountMintGas { shared_args } => {
+                        let account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
+                        account.mint_gas();
+                    },
                 }
+                
             }
         }
     }

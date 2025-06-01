@@ -121,4 +121,46 @@ pub enum Commands {
           allow_hyphen_values = true)]
         custom_deployer_args: Option<Vec<String>>,
     },
+    #[clap(about = "create a new account")]
+    Account {
+        #[clap(subcommand)]
+        commands: AccountSubcommands,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct AccountSharedArgs {
+    #[clap(help = "use interactive menu to create account", short = 'i', long = "interactive")]
+    pub(crate) interactive: bool,
+    #[clap(help = "name of the account", short = 'n', long = "name")]
+    pub(crate) name: Option<String>,
+    #[clap(help = "network to create account on", short = 'n', long = "network")]
+    pub(crate) network: Option<String>,
+    #[clap(help = "path to the account", short = 'p', long = "path")]
+    pub(crate) path: Option<String>,
+    #[clap(help = "account public key", short = 'k', long = "public-key")]
+    pub(crate) public_key: Option<String>,
+    #[clap(help = "account address", short = 'a', long = "address")]
+    pub(crate) address: Option<String>,
+    #[clap(help = "account index", short = 'i', long = "index")]
+    pub(crate) account_index: Option<u8>,
+}
+
+#[derive(Subcommand)]
+pub enum AccountSubcommands {
+    #[clap(about = "create a new account", name = "create")]
+    AccountCreate {
+        #[clap(flatten)]
+        shared_args: AccountSharedArgs,
+    },
+    #[clap(about = "show account", name = "show")]
+    AccountShow {
+        #[clap(flatten)]
+        shared_args: AccountSharedArgs,
+    },
+    #[clap(about = "mint gas for account", name = "mint-gas")]
+    AccountMintGas {
+        #[clap(flatten)]
+        shared_args: AccountSharedArgs,
+    },
 }

@@ -30,6 +30,7 @@ getrandom = { workspace = true }
 dirs = { workspace = true }
 walkdir = { workspace = true }
 base64 = "0.22.1"
+serde = "1.0.219"
 
 [target.wasm32-unknown-unknown]
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']

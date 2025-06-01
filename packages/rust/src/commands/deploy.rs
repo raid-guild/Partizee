@@ -4,25 +4,32 @@
 
 
 use std::path::PathBuf;
-use crate::commands::account::Account;
-
+use crate::commands::account::{Account, load_from_file};
 #[derive(Debug, Clone)]
 pub struct DeployProject {
     pub project_root: Option<PathBuf>,
     pub contract_path: Option<PathBuf>,
     pub network: Option<String>,       
     pub deployer_args: Option<Vec<String>>,
+    pub account_path: Option<PathBuf>,
     pub account: Option<Account>,
 }
 
 impl DeployProject {
     pub fn new(deploy_config: DeployProject) -> Self {
-        let account: Option<Account> = Some(Account::new(deploy_config.network.as_deref()));
+        let account: Option<Account>;
+        if deploy_config.account_path.is_some() {
+            account = Some(load_from_file(&deploy_config.account_path.as_ref().unwrap()).unwrap());
+        } else {
+            account = None;
+        }
+
         Self {
             project_root: deploy_config.project_root,
             contract_path: deploy_config.contract_path,
             network: deploy_config.network,
             deployer_args: deploy_config.deployer_args,
+            account_path: deploy_config.account_path,
             account: account,
         }
     }
@@ -32,8 +39,7 @@ impl DeployProject {
         let network: String = self.network.as_ref().unwrap().to_string();
         // if no private key create a new test account and write private key to env
         if  &network == "testnet" {
-            println!("Creating testnet account...");
-            // std::env::set_var("PRIVATE_KEY", new_account);
+            
         } else if &network == "mainnet" {
             // let new_account: AddressType = create_account();
             // std::env::set_var("PRIVATE_KEY", new_account);
