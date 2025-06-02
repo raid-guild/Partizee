@@ -31,6 +31,9 @@ dirs = { workspace = true }
 walkdir = { workspace = true }
 base64 = "0.22.1"
 serde = "1.0.219"
+k256 = { version = "0.13", features = ["arithmetic"] }
+sha2 = "0.10"
+hex = "0.4"
 
 [target.wasm32-unknown-unknown]
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']

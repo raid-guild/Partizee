@@ -63,10 +63,10 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 Commands::Account { commands } => match commands {
                     AccountSubcommands::AccountCreate { shared_args } => {
                         if shared_args.interactive {
-                            let account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
+                            let mut account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
                             account.create_account(shared_args.network.as_deref()); 
                         } else {
-                            let account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
+                            let mut account: Account = Account::new(shared_args.name.as_deref(), shared_args.network.as_deref(), shared_args.path.as_deref(), shared_args.public_key.as_deref(), shared_args.address.as_deref(), shared_args.account_index);
                             account.create_account(shared_args.network.as_deref()); 
                         }
                     },
