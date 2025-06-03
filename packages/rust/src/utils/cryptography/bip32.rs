@@ -175,7 +175,7 @@ mod tests {
         let master = Bip32::generate_master_key(&seed).unwrap();
         let child = Bip32::derive_child_key(&master, 0).unwrap();
         let private_key = child.private_key().unwrap();
-        println!("{}", hex::encode(private_key.to_bytes()));
+        assert_eq!(hex::encode(private_key.to_bytes()).len(), 64);
     }
 
     #[test]
@@ -183,7 +183,7 @@ mod tests {
         let key = b"000102030405060708090a0b0c0d0e0f";
         let data = b"000102030405060708090a0b0c0d0e0f";
         let hmac = Bip32::hmac_sha512(key, data).unwrap();
-        println!("{}", hex::encode(hmac));
+        assert_eq!(hex::encode(hmac).len(), 128);
     }
 
 }

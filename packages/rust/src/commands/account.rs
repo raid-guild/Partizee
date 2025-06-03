@@ -10,8 +10,7 @@ use std::path::PathBuf;
 use crate::utils::utils::{print_output, print_error};
 use crate::utils::menus::new_account_menu;
 use crate::utils::constants::DEFAULT_ACCOUNT_NAME;
-use std::fs;
-use bip32::{Mnemonic, XPrv, DerivationPath, ExtendedPrivateKey};
+use crate::utils::cryptography::bip32::Bip32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -147,30 +146,6 @@ impl Account {
         }
     }
 
-    pub fn derive_private_key(&self)  {
-        // // derive private key from public key
-        // let mnemonic_str: String = fs::read_to_string(id_pbc_path().unwrap())
-        // .expect("Failed to read id_pbc file")
-        // .trim()
-        // .to_string();
-        // let mnemonic: Mnemonic = Mnemonic::parse(&mnemonic_str).unwrap();
-        // let seed = mnemonic.to_seed_normalized(Mnemonic::DEFAULT_ENTROPY_BITS).unwrap();
-    
-        // // 2. Build BIP44 path: m/44'/coin_type'/account'/change/address_index
-        // let path_str = format!(
-        //     "m/44'/{}'/{}'/{}/{}",
-        //     60, 0, 0, 0
-        // );
-        // let derivation_path = DerivationPath::from_str(&path_str).unwrap();
-    
-        // // 3. Derive the extended private key
-        // let xprv = XPrv::new(seed.as_bytes()).unwrap();
-        // let child_xprv = xprv.derive_path(&derivation_path).unwrap();
-    
-        // // 4. Get the secp256k1 signing key
-        // SigningKey::from_bytes(child_xprv.private_key().to_bytes()).unwrap()
-    }
-
     pub fn get_account_address(&mut self, b64_public_key: Option<&str>) -> Option<String> {
         // check for stored key in account file
         if !self.address.is_empty() && b64_public_key.is_none() {
@@ -226,6 +201,14 @@ impl Account {
         Some(address)
     }
 
+    pub fn derive_private_key(&mut self) -> Option<String> {
+        let seed = self.get_compressed_public_key(None).unwrap();
+        let master = Bip32::generate_master_key(&seed).unwrap();
+        let child = Bip32::derive_child_key(&master, 0).unwrap();
+        let private_key = child.private_key().unwrap();
+        Some(hex::encode(private_key.to_bytes()))
+    }
+
     // gets the b64 public key from pbc file mnemonic
     pub fn get_b64_public_key(&mut self, id_pbc_path_input: Option<PathBuf>) -> Option<String> {
         let account: Output;
@@ -259,6 +242,7 @@ impl Account {
             return None;
         }
     }
+
     // should be called after get_b64_public_key or pass in b64_public_key
     pub fn get_compressed_public_key(& mut self, b64_public_key: Option<&str>) -> Option<Vec<u8>> {
         let b64_key = b64_public_key.unwrap_or(&self.public_key);
@@ -322,6 +306,21 @@ impl Account {
 
         None
     }
+
+    // pub fn get_balance(&mut self, network: Option<&str>, token: Option<&str>) -> Option<String> {
+    //     let network_command: String = format!("--net={}", network.unwrap_or(&self.network));
+    //     let token_command: String = format!("--token={}", token.unwrap_or(""));
+    //     // create bet balance tx
+
+    //     let output = Command::new("cargo")
+    //         .arg("pbc")
+    //         .arg("transaction")
+    //         .arg("send")
+    //         .arg(network_command)
+    //         .arg(token_command)
+    //         .output()
+    //         .expect("Failed to get balance");
+    // }
 }
 
 pub fn default_save_path(name: &str) -> PathBuf {
@@ -417,6 +416,14 @@ mod tests {
         let mut account: Account = Account::new(Some("test"), Some("testnet"), None, None, None, None);
         let address: String = account.get_account_address(None).unwrap();
         assert!(address.len() == 42);
+    }
+
+    #[test]
+    fn test_derive_private_key() {
+        let mut account: Account = Account::new(Some("test"), Some("testnet"), None, None, None, None);
+        let private_key: String = account.derive_private_key().unwrap();
+        println!("PRIVATE KEY: {}", private_key);
+        assert!(private_key.len() == 64);
     }
 
 }

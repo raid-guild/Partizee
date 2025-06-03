@@ -1,6 +1,7 @@
 mod partizee;
 mod commands;
 mod utils;
+mod client;
 
 use partizee::partizee;
 

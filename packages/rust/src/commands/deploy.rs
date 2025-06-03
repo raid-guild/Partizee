@@ -70,7 +70,7 @@ impl DeployProject {
         let network: String = self.network.as_ref().unwrap().to_string();
         if  &network == "testnet" {
             let account: Account = self.account.as_ref().unwrap().clone();
-            account.mint_gas();
+            // check account has gas
 
         } else if &network == "mainnet" {
 
