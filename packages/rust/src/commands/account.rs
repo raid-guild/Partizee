@@ -9,6 +9,9 @@ use std::process::{Command, Output};
 use std::path::PathBuf;
 use crate::utils::utils::{print_output, print_error};
 use crate::utils::menus::new_account_menu;
+use crate::utils::constants::DEFAULT_ACCOUNT_NAME;
+use std::fs;
+use bip32::{Mnemonic, XPrv, DerivationPath, ExtendedPrivateKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -16,9 +19,22 @@ pub struct Account {
     pub public_key: String,
     pub address: String,
     pub network: String,
-    pub path: PathBuf,
+    pub path_to_id_pbc: PathBuf,
     pub account_index: u8,
-    pub account_path: PathBuf,
+}
+
+impl Default for Account {
+    fn default() -> Self {
+        Self {
+            
+            public_key: String::from(""),
+            address: String::from(""),
+            network: String::from("testnet"),
+            path_to_id_pbc: id_pbc_path().unwrap(),
+            account_index: 0,
+            name: String::from(&format!("account_{}", 0)),  
+        }
+    }
 }
 
 impl Account {
@@ -31,7 +47,7 @@ impl Account {
             let public_key: String = public_key.unwrap_or("").to_string();
             let address: String = address.unwrap_or("").to_string(); //get_account_address(Some(&network)).unwrap();
             let account_index: u8 = account_index.unwrap_or(0);
-            let name: String = name.unwrap_or(&format!("account_{}", account_index)).to_string();
+            let name: String = name.unwrap_or(DEFAULT_ACCOUNT_NAME).to_string();
             let account_path: PathBuf = default_path;    
 
         new_account = Self {
@@ -39,9 +55,8 @@ impl Account {
             network: network.clone(),
             public_key: public_key,
             address: address,
-            path: path.clone(),
+            path_to_id_pbc: path.clone(),
             account_index: account_index,
-            account_path: account_path,
             };
         // update public key and address
         new_account.update_account(None);
@@ -51,7 +66,8 @@ impl Account {
     }
 
     pub fn load_from_file(&mut self) -> Option<&Self> {
-       let loaded_account: Option<Account> = load_from_file(&self.account_path);
+        let account_path: PathBuf = default_save_path(&self.name);
+       let loaded_account: Option<Account> = load_from_file(Some(account_path));
        if loaded_account.is_some() {
        *self = loaded_account.unwrap();
        Some(self)
@@ -63,12 +79,13 @@ impl Account {
 
     pub fn save_to_file(&self) -> std::io::Result<()> {
         let json: String = serde_json::to_string_pretty(self).unwrap();
-        if self.account_path.is_file() {
-            std::fs::write(&self.account_path, json).expect("Failed to write to file");
+        let account_path: PathBuf = default_save_path(&self.name);
+        if account_path.is_file() {
+            std::fs::write(&account_path, json).expect("Failed to write to file");
         } else {
-            println!("Saving account to file: {}", self.account_path.display());
-            std::fs::create_dir_all(self.account_path.parent().unwrap()).expect("Failed to create directory");
-            std::fs::write(&self.account_path, json).expect("Failed to write to file");
+            println!("Saving account to file: {}", account_path.display());
+            std::fs::create_dir_all(account_path.parent().unwrap()).expect("Failed to create directory");
+            std::fs::write(account_path, json).expect("Failed to write to file");
         }
         Ok(())
     }
@@ -78,9 +95,11 @@ impl Account {
     }
 
     pub fn update_account(&mut self, network: Option<&str>) {
-        self.public_key = self.get_compressed_public_key(network).expect("Failed to get compressed public key");
+        self.public_key = self.get_b64_public_key(None).expect("Failed to get b64 public key");
         self.address = self.get_account_address(network).expect("Failed to get account address");
     }
+
+
 
     pub fn show_account(&self, network: Option<&str>) -> Option<Value> {
         let network_command: String = format!("--net={}", network.unwrap_or(&self.network));
@@ -128,9 +147,33 @@ impl Account {
         }
     }
 
+    pub fn derive_private_key(&self)  {
+        // // derive private key from public key
+        // let mnemonic_str: String = fs::read_to_string(id_pbc_path().unwrap())
+        // .expect("Failed to read id_pbc file")
+        // .trim()
+        // .to_string();
+        // let mnemonic: Mnemonic = Mnemonic::parse(&mnemonic_str).unwrap();
+        // let seed = mnemonic.to_seed_normalized(Mnemonic::DEFAULT_ENTROPY_BITS).unwrap();
+    
+        // // 2. Build BIP44 path: m/44'/coin_type'/account'/change/address_index
+        // let path_str = format!(
+        //     "m/44'/{}'/{}'/{}/{}",
+        //     60, 0, 0, 0
+        // );
+        // let derivation_path = DerivationPath::from_str(&path_str).unwrap();
+    
+        // // 3. Derive the extended private key
+        // let xprv = XPrv::new(seed.as_bytes()).unwrap();
+        // let child_xprv = xprv.derive_path(&derivation_path).unwrap();
+    
+        // // 4. Get the secp256k1 signing key
+        // SigningKey::from_bytes(child_xprv.private_key().to_bytes()).unwrap()
+    }
+
     pub fn get_account_address(&mut self, b64_public_key: Option<&str>) -> Option<String> {
         // check for stored key in account file
-        if !self.address.is_empty() {
+        if !self.address.is_empty() && b64_public_key.is_none() {
             // verify stored address is 21 bytes long
             if self.address.len() == 42 {
                 // verify address is valid
@@ -147,89 +190,94 @@ impl Account {
         } else {
             // if no stored address check for stored public key
         if !self.public_key.is_empty() {
-                 // verify stored public key is 64 bytes long
-             
                     public_key = self.public_key.clone();
         
-        } else {
-            public_key = self.get_compressed_public_key(None).unwrap();
-        } 
+            } else {
+                // get b64 public key from pbc
+            public_key = self.get_b64_public_key(None).unwrap();
+            } 
         }
 
-        // verify public key is 66 characters long
-        if public_key.len() != 66 {
+        assert!(public_key.len() == 44);
+        let public_key: Vec<u8> = self.get_compressed_public_key(Some(&public_key)).unwrap();
+
+        // verify public key vec has a length  of 33
+        if public_key.len() != 33 {
             println!("Invalid public key length");
             return None;
         }
         
-        let compressed_public_key: Vec<u8> = hex::decode(&public_key).ok().unwrap();
-
-        // 2. Parse compressed public key
-        let encoded = EncodedPoint::from_bytes(&compressed_public_key).ok()?;
+        // Parse compressed public key
+        let encoded = EncodedPoint::from_bytes(&public_key).ok()?;
         let pubkey = PublicKey::from_encoded_point(&encoded);
-        // 3. Serialize as uncompressed
+        // Serialize as uncompressed
         let uncompressed = pubkey.unwrap().to_encoded_point(false);
         let uncompressed_bytes = uncompressed.as_bytes();
 
-        // 4. Hash the uncompressed key (skip 0x04 prefix)
+        // Hash the uncompressed key (skip 0x04 prefix)
         let hash = Sha256::digest(&uncompressed_bytes[1..]);
 
-        // 5 create address add  00 to beggning and truncate the last 20 bytes
+        // create address add  00 to beggning and truncate to the last 20 bytes
         let mut address: String = format!("00{}", hex::encode(hash));
+        // truncate to 21 bytes
         address.truncate(42);
         self.address = address.clone();
         self.save_to_file().expect("Failed to save account to file");
         Some(address)
     }
 
-    pub fn get_compressed_public_key(& mut self, network: Option<&str>) -> Option<String> {
-        // if no stored public key, get it from pbc
-        if self.public_key.is_empty() {
-
-            let account: Output;
-            if let Some(id_pbc_path) = id_pbc_path() {
+    // gets the b64 public key from pbc file mnemonic
+    pub fn get_b64_public_key(&mut self, id_pbc_path_input: Option<PathBuf>) -> Option<String> {
+        let account: Output;
+        let id_pbc_path = id_pbc_path_input.unwrap_or(id_pbc_path().unwrap());
+        if id_pbc_path.is_file() {
             account = Command::new("cargo")
                 .arg("pbc")
                 .arg("wallet")
                 .arg("publickey")
-                .arg(format!("--net={}", network.unwrap_or(&self.network)))
+                .arg(format!("--net={}", &self.network))
                 .arg(format!("--path={}", id_pbc_path.display()))
                 .arg("-v")
                 .output()
                 .expect("Failed to get public key");
-
+                
             if account.status.success() {
                 let line: String = String::from_utf8_lossy(&account.stdout).to_string();
-                let b64_key = line.trim().split_whitespace().last().unwrap(); // get the last word
-                let compressed_public_key: Vec<u8> = STANDARD.decode(b64_key).expect("Failed to decode public key");
+                let b64_key: String = line.trim().split_whitespace().last().unwrap().trim().to_string(); // get the last word
 
-                if compressed_public_key.len() != 33 {
-                    println!("incorrect public key length");
-                    return None;
-                }
-                let hex_key = hex::encode(&compressed_public_key);
-                self.public_key = hex_key.trim().to_string();
+                self.public_key = b64_key.clone();
                 self.save_to_file().expect("Failed to save account to file");
                 
-                    return Some(hex_key);
+                return Some(b64_key);
             } else {
                 print_error(&account);
                 return None;
             }
-            } else {
-                println!("Failed to get public key from pbc");
-                return None;
-            }
-        } else {
-            return Some(self.public_key.clone());
-        }
-      
-    }
 
+        } else {
+            println!("Failed to get public key from pbc");
+            return None;
+        }
+    }
+    // should be called after get_b64_public_key or pass in b64_public_key
+    pub fn get_compressed_public_key(& mut self, b64_public_key: Option<&str>) -> Option<Vec<u8>> {
+        let b64_key = b64_public_key.unwrap_or(&self.public_key);
+        // if no stored public key, get it from pbc
+        if b64_key.is_empty() {
+            let b64_public_key: String = self.get_b64_public_key(None).unwrap();
+            let compressed_public_key: Vec<u8> = STANDARD.decode(b64_public_key).expect("Failed to decode public key");
+            
+            return Some(compressed_public_key);
+        } else {
+            let compressed_public_key: Vec<u8> = STANDARD.decode(b64_key).expect("Failed to decode public key");
+            return Some(compressed_public_key);
+        }
+    }
+             
     pub fn create_account(&mut self, network: Option<&str>) -> Option<String>{
         let network_command: String = format!("--net={}", network.unwrap_or(&self.network));
-        // look for existing account in .accounts folder
-        if self.get_account_address(None).is_none() {
+        // check if .pbc folder exists
+        if id_pbc_path().is_some() {
             // create new account
             let output = Command::new("cargo")
                 .arg("pbc")
@@ -283,18 +331,24 @@ pub fn default_save_path(name: &str) -> PathBuf {
     pbc_dir
 }
 
-pub fn load_from_file(path: &PathBuf) -> Option<Account> {
-    let data = std::fs::read_to_string(path).ok()?;
+pub fn load_from_file(path: Option<PathBuf>) -> Option<Account> {
+    let data: String;
+    if path.is_some() { 
+        data = std::fs::read_to_string(path.unwrap()).ok()?;
+    } else {
+        return None;
+    }
     if !data.is_empty() {
         let self_struct: Account = serde_json::from_str(&data).ok()?;
             Some(Account::new(
                 Some(self_struct.name.as_ref()),
                 Some(self_struct.network.as_ref()),
-                self_struct.path.to_str(),
+                Some(self_struct.path_to_id_pbc.to_str().unwrap()),
                 Some(self_struct.public_key.as_ref()),
                 Some(self_struct.address.as_ref()),
                 Some(self_struct.account_index)))
     } else {
+        
         println!("Failed to load account from file");
         None
     }
@@ -340,15 +394,22 @@ mod tests {
     #[test]
     fn test_load_from_file() {
         let mut account: Account = Account::new(Some("test"), Some("testnet"), None, None, None, None);
-        let loaded_account: Option<Account> = load_from_file(&account.account_path);
+        let loaded_account: Option<Account> = load_from_file(Some(default_save_path("test")));
         assert!(loaded_account.is_some());
+    }
+
+    #[test]
+    fn test_get_b64_public_key() {
+        let mut account: Account = Account::new(Some("test"), Some("testnet"), None, None, None, None);
+        let b64_public_key: String = account.get_b64_public_key(None).unwrap();
+        assert!(b64_public_key.len() == 44);
     }
 
     #[test]
     fn test_get_compressed_public_key() {
         let mut account: Account = Account::new(Some("test"), Some("testnet"), None, None, None, None);
-        let compressed_public_key: String = account.get_compressed_public_key(None).unwrap();
-        assert!(compressed_public_key.len() == 66);
+        let compressed_public_key: Vec<u8> = account.get_compressed_public_key(None).unwrap();
+        assert!(compressed_public_key.len() == 33);
     }
 
     #[test]
@@ -357,4 +418,5 @@ mod tests {
         let address: String = account.get_account_address(None).unwrap();
         assert!(address.len() == 42);
     }
+
 }

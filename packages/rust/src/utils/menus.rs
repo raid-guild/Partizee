@@ -240,7 +240,7 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
     } else {
         path = config.contract_path;
     };
-    
+
     if config.deployer_args.is_none() {
         let add_deployer_args = confirm("Would you like to specify deployer arguments? (if No: we'll use the default arguments)")
         .initial_value(false)
@@ -282,7 +282,7 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
         contract_path: path,
         project_root: project_root,
         deployer_args: deployer_args,
-        account_path: None,
+        account_name: None,
         account: None
      })
 }

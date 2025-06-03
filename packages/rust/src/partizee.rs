@@ -49,7 +49,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                         contract_path: path,
                         project_root: root,
                         deployer_args: deployer_args,
-                        account_path: None,
+                        account_name: None,
                         account: None,
                     };
 
