@@ -294,3 +294,22 @@ pub fn new_account_menu() -> Result<bool, Box<dyn std::error::Error>> {
    .interact();
    return Ok(force_create.unwrap());
 }
+
+pub fn contract_deploy_args(contract_name: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut deployer_args: Vec<String> = Vec::new();
+    loop {
+        let deployer_arg: String = input(format!("Enter deployer argument for {}", contract_name))
+        .placeholder("pbc cli arg")
+        .interact()?;
+        if !deployer_arg.trim().is_empty() {
+            deployer_args.push(deployer_arg);
+        }
+        let another: bool = confirm("Enter another argument? (y/n)")
+        .initial_value(false)
+        .interact()?;
+        if !another {
+            break;
+        }
+    };
+    Ok(deployer_args)
+}

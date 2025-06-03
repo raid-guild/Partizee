@@ -36,6 +36,38 @@ pub fn find_workspace_root() -> Option<PathBuf> {
     None
 }
 
+pub fn find_paths_with_extension(folder: &Path, extension: &str) -> Vec<PathBuf> {
+    let mut matches = Vec::new();
+    if let Ok(entries) = fs::read_dir(folder) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(ext) = path.extension() {
+                if ext == extension {
+                    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                        matches.push(path);
+                    }
+                }
+            }
+        }
+    }
+    matches
+}
+
+pub fn find_path_with_name(folder: &Path, name: &str) -> Vec<PathBuf> {
+    let mut matches = Vec::new();
+    if let Ok(entries) = fs::read_dir(folder) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                if file_name == name {
+                    matches.push(path);
+                }
+            }
+        }
+    }
+    matches
+}
+
 pub fn print_output(output: &Output) {
     eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&output.stdout));
 }

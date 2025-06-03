@@ -56,7 +56,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     // get options from interactive menu and pass deployer_args as needed
                     let menu_args: DeployProject = deploy_menu(config)?;
                     // create a new DeployProject with the provided args
-                    let deploy_project: DeployProject = DeployProject::new(menu_args);
+                    let mut deploy_project: DeployProject = DeployProject::new(menu_args);
                     // deploy the contract
                     deploy_project.deploy_contracts()?;
                 },

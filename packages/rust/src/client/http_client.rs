@@ -1,6 +1,7 @@
 use reqwest::{header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE}, Client};
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::test;
+use crate::utils::constants::TESTNET_RPC_ENDPOINT;
+
 pub enum RequestType {
     GET,
     PUT,
@@ -84,7 +85,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_request() {
         let client = HttpClient::default();
-        let result = client.get_request::<TestData>("https://api.example.com/test").await;
+        let result = client.get_request::<TestData>(TESTNET_RPC_ENDPOINT).await;
         assert!(result.is_ok());
         println!("RESULT: {:?}", result);
     }
@@ -97,7 +98,7 @@ mod tests {
             name: "test".to_string(),
         };
         let result = client.put_request::<TestData, TestData>(
-            "https://api.example.com/test",
+            TESTNET_RPC_ENDPOINT,
             &test_data
         ).await;
         println!("RESULT: {:?}", result);
