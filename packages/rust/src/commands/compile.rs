@@ -1,5 +1,4 @@
-
-use crate::utils::menus::{compile_menu};
+use crate::utils::menus::compile_menu;
 use crate::utils::utils::find_workspace_root;
 use std::{
     env, fs,
@@ -17,10 +16,9 @@ pub struct ProjectCompiler {
     pub additional_args: Option<Vec<String>>,
 }
 
-
 impl Default for ProjectCompiler {
     #[inline]
-    fn default() -> Self{
+    fn default() -> Self {
         let compile_args: ProjectCompiler = ProjectCompiler {
             project_root: None,
             files: None,
@@ -45,42 +43,46 @@ impl ProjectCompiler {
             files: compile_args.files,
             build_args: compile_args.build_args,
             additional_args: compile_args.additional_args,
-        }   
+        }
     }
 
     pub fn compile_contracts(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut output: Output;
-        let mut args = vec![String::from("pbc"), String::from("build"), String::from("--release")];
+        let mut args = vec![
+            String::from("pbc"),
+            String::from("build"),
+            String::from("--release"),
+        ];
 
         // gather build args and additional args
-       extend_args(&mut args, self.build_args.as_ref());
-       extend_args(&mut args, self.additional_args.as_ref());
+        extend_args(&mut args, self.build_args.as_ref());
+        extend_args(&mut args, self.additional_args.as_ref());
 
         // if files is not None, compile the files
         if self.files.is_none() {
             // compile all contracts in the contracts directory add compiler args and build args
-                output = Command::new("cargo")
+            output = Command::new("cargo")
                 .args(&args)
                 .output()
                 .expect("Failed to compile contracts");
-    
-           
+
             if output.status.success() {
                 let output_str = String::from_utf8_lossy(&output.stdout);
                 print_success_message(&output_str);
             } else {
-                print_error_message("all contracts", String::from_utf8_lossy(&output.stderr).as_ref());
+                print_error_message(
+                    "all contracts",
+                    String::from_utf8_lossy(&output.stderr).as_ref(),
+                );
             }
-             // else compile all contracts in the specified files
+            // else compile all contracts in the specified files
         } else {
             for file in self.files.as_ref().unwrap() {
                 let mut new_args = args.clone();
                 new_args.push(String::from("--manifest-path"));
                 new_args.push(file.to_string());
-                output = Command::new("cargo")
-                    .args(&new_args)
-                    .output()?;
-                
+                output = Command::new("cargo").args(&new_args).output()?;
+
                 if output.status.success() {
                     print_success_message(file);
                 } else {
@@ -93,7 +95,10 @@ impl ProjectCompiler {
     }
 }
 
-fn extend_args<'a>(base_args:&'a mut Vec<String>, new_args: Option<&Vec<String>>) -> &'a mut Vec<String> {
+fn extend_args<'a>(
+    base_args: &'a mut Vec<String>,
+    new_args: Option<&Vec<String>>,
+) -> &'a mut Vec<String> {
     if new_args.is_some() {
         base_args.extend(new_args.unwrap().iter().map(|arg| arg.to_string()));
     }
@@ -107,4 +112,3 @@ pub fn print_success_message(file: &str) {
 pub fn print_error_message(file: &str, error: &str) {
     eprintln!("❌ Failed to compile {}: {}", file, error);
 }
-

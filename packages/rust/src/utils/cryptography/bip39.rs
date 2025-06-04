@@ -1,8 +1,8 @@
-use sha2::{Sha256, Sha512, Digest};
+use pbkdf2::pbkdf2_hmac;
+use sha2::{Digest, Sha256, Sha512};
 use std::fs;
 use std::path::Path;
 use unicode_normalization::UnicodeNormalization;
-use pbkdf2::pbkdf2_hmac;
 
 const ENGLISH_WORDLIST: &str = include_str!("wordlist.txt");
 const PBKDF2_ROUNDS: u32 = 2048;
@@ -15,7 +15,9 @@ impl Bip39 {
     pub fn generate_mnemonic(entropy: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
         let entropy_bit_length = entropy.len() * 8;
         if entropy_bit_length % 32 != 0 || entropy_bit_length < 128 || entropy_bit_length > 256 {
-            return Err("Invalid entropy size, must be multiple of 32 and in range [128;256]".into());
+            return Err(
+                "Invalid entropy size, must be multiple of 32 and in range [128;256]".into(),
+            );
         }
 
         let indexes = Self::get_word_indexes(entropy)?;
@@ -32,17 +34,17 @@ impl Bip39 {
     pub fn mnemonic_to_seed(mnemonic: &str, passphrase: &str) -> Vec<u8> {
         let normalized_mnemonic = mnemonic.nfkd().collect::<String>();
         let normalized_passphrase = passphrase.nfkd().collect::<String>();
-        
+
         let salt = format!("{}{}", MNEMONIC_SALT_PREFIX, normalized_passphrase);
         let mut seed = vec![0u8; 64];
-        
+
         pbkdf2_hmac::<Sha512>(
             normalized_mnemonic.as_bytes(),
             salt.as_bytes(),
             PBKDF2_ROUNDS,
             &mut seed,
         );
-        
+
         seed
     }
 
@@ -88,10 +90,12 @@ impl Bip39 {
 
     fn convert_words_to_indexes(words: &[&str]) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         let word_list: Vec<&str> = ENGLISH_WORDLIST.lines().collect();
-        
-        words.iter()
+
+        words
+            .iter()
             .map(|word| {
-                word_list.iter()
+                word_list
+                    .iter()
                     .position(|&w| w == *word)
                     .map(|i| i as u32)
                     .ok_or_else(|| format!("Invalid word in mnemonic: {}", word).into())
@@ -110,7 +114,8 @@ impl Bip39 {
         let entropy_bytes = Self::get_byte_amount_from_bits(entropy_bits);
 
         let entropy = &entropy_with_checksum[..entropy_bytes];
-        let expected_checksum = Self::extract_bits(&entropy_with_checksum, entropy_bits, checksum_bits);
+        let expected_checksum =
+            Self::extract_bits(&entropy_with_checksum, entropy_bits, checksum_bits);
 
         let computed_checksum = Self::compute_checksum(entropy);
         let computed_checksum_bits = (computed_checksum as u32 & 0xFF) >> (8 - checksum_bits);

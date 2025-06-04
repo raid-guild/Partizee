@@ -22,7 +22,6 @@ pub struct ProjectConfig {
     pub output_dir: Option<String>,
 }
 
-
 impl NewProject {
     pub fn new(dapp_name: Option<String>, output_dir: Option<String>) -> Self {
         // Get project config from CLI or menu

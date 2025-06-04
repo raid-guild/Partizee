@@ -1,6 +1,9 @@
-use reqwest::{header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE}, Client};
-use serde::{de::DeserializeOwned, Serialize};
 use crate::utils::constants::TESTNET_RPC_ENDPOINT;
+use reqwest::{
+    header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE},
+    Client,
+};
+use serde::{de::DeserializeOwned, Serialize};
 
 pub enum RequestType {
     GET,
@@ -16,10 +19,16 @@ pub struct HttpClient {
 impl Default for HttpClient {
     fn default() -> Self {
         let mut get_headers = HeaderMap::new();
-        get_headers.insert(ACCEPT, HeaderValue::from_static("application/json, text/plain, */*"));
+        get_headers.insert(
+            ACCEPT,
+            HeaderValue::from_static("application/json, text/plain, */*"),
+        );
 
         let mut post_headers = HeaderMap::new();
-        post_headers.insert(ACCEPT, HeaderValue::from_static("application/json, text/plain, */*"));
+        post_headers.insert(
+            ACCEPT,
+            HeaderValue::from_static("application/json, text/plain, */*"),
+        );
         post_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
         Self {
@@ -31,11 +40,12 @@ impl Default for HttpClient {
 }
 
 impl HttpClient {
-    pub async fn get_request<R>(&self, url: &str) -> Result<Option<R>, reqwest::Error> 
-    where 
+    pub async fn get_request<R>(&self, url: &str) -> Result<Option<R>, reqwest::Error>
+    where
         R: DeserializeOwned,
     {
-        let response = self.client
+        let response = self
+            .client
             .get(url)
             .headers(self.get_headers.clone())
             .send()
@@ -44,12 +54,17 @@ impl HttpClient {
         self.handle_response(response).await
     }
 
-    pub async fn put_request<T, R>(&self, url: &str, object: &T) -> Result<Option<R>, reqwest::Error>
+    pub async fn put_request<T, R>(
+        &self,
+        url: &str,
+        object: &T,
+    ) -> Result<Option<R>, reqwest::Error>
     where
         T: Serialize,
         R: DeserializeOwned,
     {
-        let response = self.client
+        let response = self
+            .client
             .put(url)
             .headers(self.post_headers.clone())
             .body(serde_json::to_string(object).unwrap())
@@ -59,7 +74,10 @@ impl HttpClient {
         self.handle_response(response).await
     }
 
-    async fn handle_response<T>(&self, response: reqwest::Response) -> Result<Option<T>, reqwest::Error>
+    async fn handle_response<T>(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<Option<T>, reqwest::Error>
     where
         T: DeserializeOwned,
     {
@@ -97,10 +115,9 @@ mod tests {
             id: 1,
             name: "test".to_string(),
         };
-        let result = client.put_request::<TestData, TestData>(
-            TESTNET_RPC_ENDPOINT,
-            &test_data
-        ).await;
+        let result = client
+            .put_request::<TestData, TestData>(TESTNET_RPC_ENDPOINT, &test_data)
+            .await;
         println!("RESULT: {:?}", result);
     }
 }

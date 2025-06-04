@@ -1,15 +1,19 @@
 use k256::{
     elliptic_curve::sec1::ToEncodedPoint,
-    SecretKey, PublicKey,
-    elliptic_curve::{generic_array::GenericArray, Field},
+    elliptic_curve::{generic_array::GenericArray, Curve, Field, Scalar},
+    AffinePoint, ProjectivePoint, PublicKey, Secp256k1, SecretKey,
 };
-use pbkdf2::{pbkdf2_hmac};
-use std::convert::TryFrom;
-use hmac_sha512::{HMAC, Hash};
 
-const HARDENED_INDEXES_START: u32 = 0x80000000;
-const MASTER_KEY_KEY: &[u8] = b"Bitcoin seed";
-const HMAC_SHA_512: &str = "HmacSHA512";
+use hmac_sha512::{Hash, HMAC};
+use k256::elliptic_curve::group::Group;
+use k256::elliptic_curve::sec1::FromEncodedPoint;
+use k256::elliptic_curve::PrimeField;
+use pbkdf2::pbkdf2_hmac;
+use std::convert::TryFrom;
+
+pub const HARDENED_INDEXES_START: u32 = 0x80000000;
+pub const MASTER_KEY_KEY: &[u8] = b"Bitcoin seed";
+pub const HMAC_SHA_512: &str = "HmacSHA512";
 
 pub struct ExtendedKey {
     private_key: Option<SecretKey>,
@@ -47,16 +51,13 @@ impl Bip32 {
     /// Generates a master key from seed
     pub fn generate_master_key(seed: &[u8]) -> Result<ExtendedKey, Box<dyn std::error::Error>> {
         let i = Self::hmac_sha512(MASTER_KEY_KEY, seed)?;
-        
+
         let il = &i[..32];
         let ir = &i[32..];
 
         let private_key = SecretKey::from_slice(il)?;
-        let public_key = PublicKey::from_sec1_bytes(
-            &private_key
-            .public_key()
-            .to_encoded_point(true)
-            .as_bytes());
+        let public_key =
+            PublicKey::from_sec1_bytes(&private_key.public_key().to_encoded_point(true).as_bytes());
 
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(ir);
@@ -71,9 +72,12 @@ impl Bip32 {
     }
 
     /// Derives a child key from parent key
-    pub fn derive_child_key(parent: &ExtendedKey, child_index: u32) -> Result<ExtendedKey, Box<dyn std::error::Error>> {
+    pub fn derive_child_key(
+        parent: &ExtendedKey,
+        child_index: u32,
+    ) -> Result<ExtendedKey, Box<dyn std::error::Error>> {
         let hardened = child_index & HARDENED_INDEXES_START != 0;
-        
+
         let data = if hardened {
             if !parent.has_private_key() {
                 return Err("Cannot derive hardened key from public key".into());
@@ -83,7 +87,11 @@ impl Bip32 {
             data.extend_from_slice(&child_index.to_be_bytes());
             data
         } else {
-            let mut data = parent.public_key().to_encoded_point(true).as_bytes().to_vec();
+            let mut data = parent
+                .public_key()
+                .to_encoded_point(true)
+                .as_bytes()
+                .to_vec();
             data.extend_from_slice(&child_index.to_be_bytes());
             data
         };
@@ -92,42 +100,60 @@ impl Bip32 {
         let il = &i[..32];
         let ir = &i[32..];
 
-        let child_key = if parent.has_private_key() {
-            // Derive private child key
-            let parent_key = parent.private_key().unwrap();
-            let mut child_private_key = SecretKey::from_slice(il)?;
-            
-            // child_key = (IL + parent_private_key) mod n
-            child_private_key = SecretKey::from_slice(
-                &(child_private_key.to_bytes().as_slice()
-                    .iter()
-                    .zip(parent_key.to_bytes().as_slice())
-                    .map(|(a, b)| a ^ b)
-                    .collect::<Vec<u8>>())
-            )?;
-            
-            Some(child_private_key)
-        } else {
-            None
-        };
+        // Interpret il as a scalar
+        let il_scalar = Scalar::<Secp256k1>::from_repr(GenericArray::clone_from_slice(il));
+        if il_scalar.is_none().into() {
+            return Err("Invalid IL scalar".into());
+        }
+        let il_scalar: Scalar<Secp256k1> = il_scalar.unwrap();
 
-        let child_public_key = match &child_key {
-            Some(pk) => PublicKey::from_sec1_bytes(&pk.public_key().to_encoded_point(true).as_bytes()),
-            None => {
-                // Derive public child key
-                let il_point = PublicKey::from_sec1_bytes(il)?;
-                let combined_point = il_point.to_projective() + parent.public_key().to_projective();
-                let encoded = combined_point.to_affine().to_encoded_point(true);
-                Ok(PublicKey::from_sec1_bytes(&encoded.as_bytes())?)
+        // Check if il_scalar is zero or >= curve order
+        if il_scalar.is_zero().into() {
+            return Err("Derived IL is zero".into());
+        }
+
+        let mut child_private_key = None;
+        let child_public_key = if parent.has_private_key() {
+            // Private parent: child private = (il + kpar) mod n
+            let parent_key = parent.private_key().unwrap();
+            let parent_scalar = Scalar::<Secp256k1>::from_repr(GenericArray::clone_from_slice(
+                &parent_key.to_bytes(),
+            ))
+            .unwrap();
+            let child_scalar: Scalar<Secp256k1> = il_scalar + parent_scalar;
+
+            if child_scalar.is_zero().into() {
+                return Err("Derived child private key is zero".into());
             }
+
+            let child_secret = SecretKey::from_slice(&child_scalar.to_bytes())?;
+            let child_pub = PublicKey::from_sec1_bytes(
+                &child_secret.public_key().to_encoded_point(true).as_bytes(),
+            )?;
+            child_private_key = Some(child_secret);
+            child_pub
+        } else {
+            // Public parent: child public = (il * G) + Kpar
+            let il_point = ProjectivePoint::generator() * il_scalar;
+
+            let parent_point: AffinePoint =
+                AffinePoint::from_encoded_point(&parent.public_key().to_encoded_point(true))
+                    .expect("Invalid parent public key encoding")
+                    .into();
+            let child_point: ProjectivePoint = il_point + parent_point;
+            if bool::from(child_point.is_identity()) {
+                return Err("Derived child public key is infinity".into());
+            }
+            let encoded = AffinePoint::from(child_point).to_encoded_point(true);
+            PublicKey::from_sec1_bytes(encoded.as_bytes())?
         };
 
         let mut chain_code = [0u8; 32];
         chain_code.copy_from_slice(ir);
 
         Ok(ExtendedKey {
-            private_key: child_key,
-            public_key: child_public_key.unwrap(),
+            private_key: child_private_key,
+            public_key: child_public_key,
             chain_code,
             depth: parent.depth() + 1,
             child_number: child_index,
@@ -157,7 +183,7 @@ mod tests {
     fn test_child_key_derivation() {
         let seed = hex::decode("000102030405060708090a0b0c0d0e0f").unwrap();
         let master = Bip32::generate_master_key(&seed).unwrap();
-        
+
         // Derive normal child key
         let child = Bip32::derive_child_key(&master, 0).unwrap();
         assert!(child.has_private_key());
@@ -185,5 +211,4 @@ mod tests {
         let hmac = Bip32::hmac_sha512(key, data).unwrap();
         assert_eq!(hex::encode(hmac).len(), 128);
     }
-
 }

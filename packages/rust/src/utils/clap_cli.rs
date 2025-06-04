@@ -81,7 +81,7 @@ pub enum Commands {
             num_args = 1..,
             allow_hyphen_values = true
             )]
-            build_args: Option<Vec<String>>,
+        build_args: Option<Vec<String>>,
 
         #[clap(
             long = "additional-args",
@@ -107,11 +107,7 @@ pub enum Commands {
             long = "path"
         )]
         custom_path: Option<String>,
-        #[clap(
-            help = "path to the project root",
-            short = 'r',
-            long = "root"
-        )]
+        #[clap(help = "path to the project root", short = 'r', long = "root")]
         custom_root: Option<String>,
         #[clap(
           help = "additional deployer arguments to pass to deploy cli command",
@@ -130,7 +126,11 @@ pub enum Commands {
 
 #[derive(Args, Debug)]
 pub struct AccountSharedArgs {
-    #[clap(help = "use interactive menu to create account", short = 'i', long = "interactive")]
+    #[clap(
+        help = "use interactive menu to create account",
+        short = 'i',
+        long = "interactive"
+    )]
     pub(crate) interactive: bool,
     #[clap(help = "name of the account", short = 'n', long = "name")]
     pub(crate) name: Option<String>,
@@ -143,7 +143,7 @@ pub struct AccountSharedArgs {
     #[clap(help = "account address", short = 'a', long = "address")]
     pub(crate) address: Option<String>,
     #[clap(help = "account index", short = 'i', long = "index")]
-    pub(crate) account_index: Option<u8>,
+    pub(crate) account_index: Option<u32>,
 }
 
 #[derive(Subcommand)]
