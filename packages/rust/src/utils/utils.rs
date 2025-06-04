@@ -13,11 +13,11 @@ pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
 });
 
 pub fn find_workspace_root() -> Option<PathBuf> {
-    let mut dir = Some(env::current_dir().unwrap());
+    let mut dir: Option<PathBuf> = Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).to_path_buf());
     let mut depth = 0;
     // limit max depth, cause we don't want to search the whole filesystem
     let max_depth = 5;
-
+    println!("Searching for workspace root in: {:?}", dir);
     while let Some(current) = dir {
         if depth >= max_depth {
             break;
@@ -30,15 +30,16 @@ pub fn find_workspace_root() -> Option<PathBuf> {
                 }
             }
         }
-        dir = Some(current.parent().unwrap().to_path_buf());
+        dir = current.parent().map(|p| p.to_path_buf());
         depth += 1;
     }
     None
 }
 
-pub fn find_paths_with_extension(folder: &Path, extension: &str) -> Vec<PathBuf> {
+pub fn find_paths_with_extension(relative_path_to_folder: &Path, extension: &str) -> Vec<PathBuf> {
     let mut matches = Vec::new();
-    if let Ok(entries) = fs::read_dir(folder) {
+    let folder_path = PathBuf::from(relative_path_to_folder);
+    if let Ok(entries) = fs::read_dir(folder_path) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Some(ext) = path.extension() {
@@ -51,6 +52,30 @@ pub fn find_paths_with_extension(folder: &Path, extension: &str) -> Vec<PathBuf>
         }
     }
     matches
+}
+
+/// Recursively search for a `target/wasm32-unknown-unknown/release` directory from the given root.
+/// Returns the first found path, or an error if not found.
+pub fn find_wasm_release_folder(project_root: &PathBuf) -> Result<PathBuf, String> {
+    println!("Searching for wasm release folder in: {:?}", project_root);
+    for entry in walkdir::WalkDir::new(project_root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        
+        let path = entry.path();
+
+        if path.ends_with("wasm32-unknown-unknown/release")
+            && path.is_dir()
+            && path
+                .ancestors()
+                .any(|ancestor| ancestor.file_name().map_or(false, |n| n == "target"))
+        {
+            return std::fs::canonicalize(path)
+                .map_err(|e| format!("Failed to canonicalize found path: {}", e));
+        }
+    }
+    Err("No target/wasm32-unknown-unknown/release directory found".to_string())
 }
 
 pub fn find_path_with_name(folder: &Path, name: &str) -> Vec<PathBuf> {

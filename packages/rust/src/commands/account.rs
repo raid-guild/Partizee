@@ -2,12 +2,12 @@ use serde_json::Value;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use k256::{EncodedPoint, PublicKey};
 use k256::elliptic_curve::sec1::{ToEncodedPoint, FromEncodedPoint};
-
+use k256::elliptic_curve::SecretKey;
 use sha2::{Digest, Sha256};
 use serde::{Serialize, Deserialize};
 use std::process::{Command, Output};
 use std::path::PathBuf;
-use crate::utils::utils::{print_output, print_error};
+use crate::utils::utils::{print_output, print_error, find_workspace_root};
 use crate::utils::menus::new_account_menu;
 use crate::utils::constants::DEFAULT_ACCOUNT_NAME;
 use crate::utils::cryptography::bip32::Bip32;
@@ -205,9 +205,27 @@ impl Account {
         let seed = self.get_compressed_public_key(None).unwrap();
         let master = Bip32::generate_master_key(&seed).unwrap();
         let child = Bip32::derive_child_key(&master, 0).unwrap();
-        let private_key = child.private_key().unwrap();
-        Some(hex::encode(private_key.to_bytes()))
+        let private_key: SecretKey<k256::Secp256k1> = child.private_key().unwrap().clone();
+        let private_key_str: String = hex::encode(&private_key.to_bytes());
+        // create .pk file in project root
+        self.save_pk_to_file(&private_key_str);
+        Some(private_key_str)
     }
+
+    pub fn save_pk_to_file(&mut self, pk: &str) -> Option<()> {
+        let pk_path: PathBuf = self.pk_file_path();
+        std::fs::write(pk_path, pk).expect("Failed to write private key to file");
+        Some(())
+    }
+
+    pub fn pk_file_path(&mut self) -> PathBuf {
+        let project_root: PathBuf = find_workspace_root().unwrap();
+        let pk_name: &str = &self.public_key[..12];
+        let pk_path: PathBuf = project_root.join(format!("{}.pk", pk_name));
+        pk_path
+    }
+
+ 
 
     // gets the b64 public key from pbc file mnemonic
     pub fn get_b64_public_key(&mut self, id_pbc_path_input: Option<PathBuf>) -> Option<String> {

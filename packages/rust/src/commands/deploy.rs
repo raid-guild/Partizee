@@ -4,11 +4,13 @@
 
 
 use std::path::PathBuf;
-use crate::{commands::account::{default_save_path, load_from_file, Account}, utils::utils::print_output};
+use crate::{commands::account::{default_save_path, load_from_file, Account}};
+use crate::utils::utils::{print_output, print_error};
 use std::process::{Command, Output};
 use std::ffi::OsStr;
 use crate::utils::menus::contract_deploy_args;
-use crate::utils::utils::find_paths_with_extension;
+use crate::utils::utils::{find_paths_with_extension, find_wasm_release_folder, find_workspace_root};
+
 #[derive(Debug, Clone)]
 pub struct DeployProject {
     pub project_root: Option<PathBuf>,
@@ -81,11 +83,27 @@ impl DeployProject {
         }
     }
 
-    pub fn deploy_contracts(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn deploy_contracts(&mut self, path_to_contracts: Option<PathBuf>) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>> {
         println!("Deploying contracts...");
         let network: String = self.network.as_ref().unwrap().to_string();
-        let contract_abis: Vec<PathBuf> = find_paths_with_extension(&PathBuf::from(format!("{}/target/wasm32-unknown-unknown/release", self.project_root.as_ref().unwrap().display())), "pbc");
- 
+        println!("Network: {:?}", network);
+        let project_root = self.project_root.as_ref().unwrap().clone();
+        println!("Project root: {:?}", project_root);
+        let full_path_to_contracts: PathBuf = find_wasm_release_folder(&project_root)?;
+           
+        println!("Full path to contracts: {:?}", full_path_to_contracts);
+        if !full_path_to_contracts.is_dir() {
+            return Err("Path to contracts is not a directory".into());
+        } else {
+            println!("Path to contracts is a directory");
+        }
+        let contract_abis: Vec<PathBuf> = find_paths_with_extension(&full_path_to_contracts, "pbc");
+        
+        println!("Contract ABIs: {:?}", contract_abis);
+        if contract_abis.is_empty() {
+            return Err("No contracts found".into());
+        }
+        let mut results: Vec<Vec<u8>> = Vec::new();
         if  &network == "testnet" {
             // check account has gas
 
@@ -97,12 +115,14 @@ impl DeployProject {
             // get contract name
           
             // deploy each contract
+            
             for contract_abi in contract_abis {
                 let contract_name: &OsStr = contract_abi.file_name().unwrap();
+                println!("Contract Name: {:?}", contract_name);
                 let contract_deploy_args: Vec<String> = contract_deploy_args(&contract_name.to_str().unwrap())?;
-                self.deploy_contract(contract_abi, contract_deploy_args)?;
+                results.push(self.deploy_contract(contract_abi, contract_deploy_args)?);
             }
-            
+            return Ok(results);
 
         } else if &network == "mainnet" {
 
@@ -111,34 +131,44 @@ impl DeployProject {
                 let contract_deploy_args: Vec<String> = contract_deploy_args(&contract_name.to_str().unwrap())?;
                 self.deploy_contract(contract_abi, contract_deploy_args)?;
             }
+            return Ok(results);
 
         } else {
             println!("Invalid network");
             return Err("Invalid network".into());
         }
-        Ok(())
     }
 
     pub fn deploy_contract(&mut self, contract_abi_path: PathBuf, args: Vec<String>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         // cargo partisia-contract transaction deploy --gas 10000000 --privatekey YourAccountFile.pk your_compiled_contract_file.pbc + contract inputs separated by spaces (strings in quotes) 
+        println!("Deploying contract: {:?}", contract_abi_path);
+        let pk_file_path: PathBuf = self.account.as_mut().unwrap().pk_file_path();
+        if !pk_file_path.is_file() {
+            self.account.as_mut().unwrap().derive_private_key().expect("Failed to derive private key");
+        }
+        println!(
+            "Command: cargo pbc transaction deploy --gas 10000000 --privatekey {:?} {:?} {:?}",
+            pk_file_path, contract_abi_path, args
+        );
         let deploymentTx: Output = Command::new("cargo")
         .arg("pbc")
         .arg("transaction")
         .arg("deploy")
         .arg("--gas")
         .arg("10000000")
-        .arg("--privatekey") 
-        .arg(self.account.as_mut().unwrap().derive_private_key().unwrap())
+        .arg("--pk") 
+        .arg(pk_file_path)
         .arg(contract_abi_path)
-        .arg(args.join(" "))
+        .args(&args)
         .output()
-        .expect("Failed to show account");
+        .expect("Failed to deploy contract");
 
         if deploymentTx.status.success() {
             print_output(&deploymentTx);
             Ok(deploymentTx.stdout)
 
         } else {
+            print_error(&deploymentTx);
             Err("Failed to deploy contract".into())
         }
     }
@@ -154,9 +184,18 @@ mod tests {
     }
     #[test]
     fn test_deploy_contracts() {
-        let deploy_config: DeployProject = DeployProject::default();
+        // create new project
+
+        let deploy_config: DeployProject = DeployProject {
+            account_name: Some("test".to_string()),
+            project_root: find_workspace_root(),
+            contract_path: None,
+            network: None,
+            deployer_args: None,
+            account: None,
+        };
         let mut deploy_project: DeployProject = DeployProject::new(deploy_config);
-        let result = deploy_project.deploy_contracts().unwrap();
+        let result = deploy_project.deploy_contracts(None).expect("Failed to deploy contracts");
         println!("{:?}", result);
     }
 }

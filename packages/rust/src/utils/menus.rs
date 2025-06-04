@@ -297,6 +297,10 @@ pub fn new_account_menu() -> Result<bool, Box<dyn std::error::Error>> {
 
 pub fn contract_deploy_args(contract_name: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut deployer_args: Vec<String> = Vec::new();
+    let needs_deployer_args: bool = confirm("Does this contract need deployer arguments? (if No: we'll use the default arguments)")
+    .initial_value(false)
+    .interact()?;
+    if needs_deployer_args {
     loop {
         let deployer_arg: String = input(format!("Enter deployer argument for {}", contract_name))
         .placeholder("pbc cli arg")
@@ -310,6 +314,7 @@ pub fn contract_deploy_args(contract_name: &str) -> Result<Vec<String>, Box<dyn 
         if !another {
             break;
         }
-    };
+        };
+    }
     Ok(deployer_args)
 }

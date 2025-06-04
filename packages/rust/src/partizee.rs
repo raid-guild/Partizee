@@ -39,8 +39,8 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Commands::Deploy { custom_net, custom_path, custom_root, custom_deployer_args } => {
                     let net: Option<String> = if custom_net.is_some() { Some(custom_net.unwrap()) } else { None };
-                    let path: Option<PathBuf> = if custom_path.is_some() { Some(PathBuf::from(custom_path.unwrap())) } else { None };
-                    let root: Option<PathBuf> = if custom_root.is_some() { Some(PathBuf::from(custom_root.unwrap())) } else { None };
+                    let path: Option<PathBuf> = if custom_path.is_some() { Some(PathBuf::from(custom_path.as_ref().unwrap())) } else { None };
+                    let root: Option<PathBuf> = if custom_root.is_some() { Some(PathBuf::from(custom_root.as_ref().unwrap())) } else { None };
                     let deployer_args: Option<Vec<String>> = if custom_deployer_args.is_some() { Some(custom_deployer_args.unwrap()) } else { None };
 
                     // create a new DeployProject with the provided args    
@@ -58,7 +58,8 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     // create a new DeployProject with the provided args
                     let mut deploy_project: DeployProject = DeployProject::new(menu_args);
                     // deploy the contract
-                    deploy_project.deploy_contracts()?;
+                    let path_to_contracts: Option<PathBuf> = if custom_path.is_some() { Some(PathBuf::from(custom_path.as_ref().unwrap())) } else { None };
+                    deploy_project.deploy_contracts(path_to_contracts)?;
                 },
                 Commands::Account { commands } => match commands {
                     AccountSubcommands::AccountCreate { shared_args } => {
