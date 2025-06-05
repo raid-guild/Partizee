@@ -346,6 +346,7 @@ pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     )
     .initial_value(false)
     .interact();
+    println!("force_create: {:?}", force_create);
     return Ok(force_create.unwrap());
 }
 

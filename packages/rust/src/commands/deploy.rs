@@ -80,7 +80,7 @@ impl DeploymentWithAccount {
     pub fn deploy_contracts(&mut self) /*-> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>>*/
     {
         println!("Deploying contracts...");
-        let network: String = self.deploy_configs.network.as_ref().unwrap().to_string();
+        let network: String = self.deploy_configs.network.clone().unwrap_or(DEFAULT_NETWORK.to_string());
         let project_root: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         println!("Network: {:?}", network);
         let names: Vec<String> = self
@@ -97,9 +97,9 @@ impl DeploymentWithAccount {
         let mut contract_zkwa_paths: Vec<PathBuf> = Vec::new();
         if names.is_empty() {
             contract_pbc_paths = find_paths_with_extension(&path_to_contracts, "pbc");
-            contract_abi_paths = find_paths_with_extension(&path_to_contracts, "abi");
-            contract_wasm_paths = find_paths_with_extension(&path_to_contracts, "wasm");
-            contract_zkwa_paths = find_paths_with_extension(&path_to_contracts, "zkwa");
+            // contract_abi_paths = find_paths_with_extension(&path_to_contracts, "abi");
+            // contract_wasm_paths = find_paths_with_extension(&path_to_contracts, "wasm");
+            // contract_zkwa_paths = find_paths_with_extension(&path_to_contracts, "zkwa");
         } else {
             for name in names {
                 let all_contract_paths = find_paths_with_name(&path_to_contracts, &name);
@@ -258,7 +258,7 @@ impl DeploymentWithAccount {
         let deployment_tx: Output = command.output()?;
 
         if deployment_tx.status.success() {
-            return print_output(&deployment_tx);
+            return print_output("deploy_contract", &deployment_tx);
         } else {
             return print_error(&deployment_tx);
         }

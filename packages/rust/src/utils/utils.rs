@@ -20,7 +20,6 @@ pub fn find_workspace_root() -> Option<PathBuf> {
     let mut depth = 0;
     // limit max depth, cause we don't want to search the whole filesystem
     let max_depth = 5;
-    println!("Searching for workspace root in: {:?}", dir);
     while let Some(current) = dir {
         if depth >= max_depth {
             break;
@@ -62,7 +61,6 @@ pub fn find_paths_with_extension(relative_path_to_folder: &Path, extension: &str
 /// Recursively search for a `target/wasm32-unknown-unknown/release` directory from the given root.
 /// Returns the first found path, or an error if not found.
 pub fn find_wasm_release_folder(project_root: &PathBuf) -> Result<PathBuf, String> {
-    println!("Searching for wasm release folder in: {:?}", project_root);
     for entry in walkdir::WalkDir::new(project_root)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -100,9 +98,9 @@ pub fn find_paths_with_name(folder: &Path, name: &str) -> Vec<PathBuf> {
 
 /// print output to console
 /// return json output
-pub fn print_output<T: DeserializeOwned>(output: &Output) -> Result<T, Box<dyn std::error::Error>> {
+pub fn print_output<T: DeserializeOwned>(function_name: &str, output: &Output) -> Result<T, Box<dyn std::error::Error>> {
     let line = String::from_utf8_lossy(&output.stdout).to_string();
-    println!("STDOUT:\n{}", line);
+    println!("function_name: {} \n STDOUT:\n{}", function_name, line);
     let json_output: Result<T, serde_json::Error> = serde_json::from_str(&line);
     match json_output {
         Ok(val) => Ok(val),
@@ -121,13 +119,6 @@ pub fn print_error<T: DeserializeOwned>(output: &Output) -> Result<T, Box<dyn st
     )));
 }
 
-pub fn default_save_path(name: &str) -> PathBuf {
-    let mut pbc_dir: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    pbc_dir.push(".accounts/");
-    pbc_dir.push(format!("{}.json", name));
-    pbc_dir
-}
-
 pub fn load_account_from_pk_file(
     path: &PathBuf,
     network: &str,
@@ -141,7 +132,13 @@ pub fn load_account_from_pk_file(
     if !data.is_empty() {
         // get address from file name - remove extension
         let file_name: String = path.file_name().unwrap().to_str().unwrap().to_string();
-        let address: String = file_name.split('.').nth(0).unwrap().to_string();
+        let mut address: String = file_name.split('.').nth(0).unwrap().to_string();
+        if address.len() != 42 {
+            // get address from file content
+            let private_key: String = std::fs::read_to_string(path).expect("Failed to read file");
+            address = get_address_from_pk(&private_key).unwrap();
+            assert_eq!(address.len(), 42, "Invalid address");
+        }
         // get private key from file content
         let private_key: String = std::fs::read_to_string(path).expect("Failed to read file");
         // validate address
@@ -151,13 +148,12 @@ pub fn load_account_from_pk_file(
             return Err("Invalid address or private key".into());
         }
 
-        let account: Account = Account::new(
-            Some(path),
-            Some(&network),
-            Some(&address),
-            Some(&private_key),
-        )
-        .unwrap();
+        let account: Account = Account {
+            network: network.to_string(),
+            address: Some(address),
+            private_key: Some(private_key),
+            path: path.to_path_buf(),
+        };
         Ok(account)
     } else {
         return Err("Path is not a file".into());
@@ -213,7 +209,7 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
         .arg("address")
         .arg(&temp_file.as_path().to_str().unwrap())
         .output();
-    println!("output: {:?}", output);
+
     if output.is_ok() {
         // get address from command output
         let address: String = String::from_utf8_lossy(&output.unwrap().stdout).to_string();
@@ -235,18 +231,18 @@ pub fn validate_address(
 ) -> Result<bool, Box<dyn std::error::Error>> {
     // validate pk length
     if private_key.len() != 64 {
-        return Err("Invalid private key".into());
+        return Err(format!("Invalid private key: {}", private_key).into());
     }
     // validate address length
     if address.len() != 42 {
-        return Err("Invalid address".into());
+        return Err(format!("Invalid address: {}", address).into());
     }
 
     let derived_address: String = get_address_from_pk(&private_key).unwrap();
 
     // validate address length
     if derived_address.len() != 42 {
-        return Err("Invalid address".into());
+        return Err(format!("Invalid derived address: {}", derived_address).into());
     }
 
     if derived_address == address {
@@ -289,6 +285,7 @@ pub fn create_pk_file(private_key: &str) -> Result<PathBuf, Box<dyn std::error::
         fs::write(&pk_file, private_key).unwrap();
         // remove temp file
         fs::remove_file(&temp_file).unwrap();
+        println!("pk_file: {:?}", pk_file);
         Ok(pk_file)
     } else {
         return print_error(&output.unwrap());
@@ -297,9 +294,26 @@ pub fn create_pk_file(private_key: &str) -> Result<PathBuf, Box<dyn std::error::
 
 pub fn get_pk_files() -> Vec<PathBuf> {
     let root_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let pk_files: Vec<PathBuf> = find_paths_with_extension(&root_path, "pk");
+    let mut pk_files: Vec<PathBuf> = find_paths_with_extension(&root_path, "pk");
+    if pk_files.is_empty() {
+        let mut depth = 0;
+        let mut outer_path: PathBuf = root_path.clone();
+        loop {
+            outer_path = outer_path.parent().unwrap().to_path_buf();
+            pk_files = find_paths_with_extension(&outer_path, "pk");
+            depth += 1;
+            if depth > 5 {
+                break;
+            }
+            if !pk_files.is_empty() {
+                break;
+            }
+        }
+    }
     pk_files
 }
+
+
 
 pub fn trim_public_key(std_output: &Output) -> String {
     let line = String::from_utf8_lossy(&std_output.stdout).to_string();

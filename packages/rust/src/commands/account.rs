@@ -23,6 +23,7 @@ pub struct Account {
 impl Default for Account {
     fn default() -> Self {
         let pk_files: Vec<PathBuf> = get_pk_files();
+        println!("pk_files: {:?}", pk_files);
         if !pk_files.is_empty() {
             let account: Account = load_account_from_pk_file(&pk_files[0], "testnet").unwrap();
             return Self {
@@ -33,10 +34,11 @@ impl Default for Account {
             };
         } else {
             if !id_pbc_path().unwrap().is_file() {
+                println!("no wallet, creating new one");
                 // if there is no wallet, create a new one
                 create_new_wallet(DEFAULT_NETWORK).expect("Failed to create new wallet");
             }
-
+            println!("creating new account");
             // create new account
             create_new_account(DEFAULT_NETWORK).expect("Failed to create new account");
 
@@ -69,6 +71,7 @@ impl Account {
         let (address_opt, private_key_opt) = (address, private_key);
         // if path to pk is provided, load account from file
         if path_to_pk.is_some() {
+            println!("loading account from file");
             new_account = load_account_from_pk_file(path_to_pk.unwrap(), &network)
                 .expect("Failed to load account from file");
             return Ok(new_account);
@@ -209,7 +212,7 @@ impl Account {
             .output()
             .expect("Failed to mint gas");
         if output.status.success() {
-            return print_output(&output);
+            return print_output("mint_gas", &output);
         } else {
             return print_error(&output);
         }
@@ -245,7 +248,7 @@ impl Account {
                 .expect("Failed to show account");
 
             if shown_account.status.success() {
-                return print_output(&shown_account);
+                return print_output("show_account", &shown_account);
             } else {
                 return print_error(&shown_account);
             }
@@ -265,7 +268,7 @@ pub fn create_new_account(network: &str) -> Result<Account, Box<dyn std::error::
     if !output.status.success() {
         return print_error(&output);
     } else {
-        return print_output(&output);
+        return print_output("create_new_account", &output);
     }
 }
 
@@ -285,7 +288,7 @@ pub fn create_new_wallet(network: &str) -> Result<String, Box<dyn std::error::Er
         if !output.status.success() {
             return print_error(&output);
         } else {
-            return print_output(&output);
+            return print_output("create_new_wallet no force", &output);
         }
     } else if id_pbc_path().unwrap().is_file() {
         // open menu to ask if user wants to create a new account
@@ -303,7 +306,7 @@ pub fn create_new_wallet(network: &str) -> Result<String, Box<dyn std::error::Er
             if !output.status.success() {
                 return print_error(&output);
             } else {
-                return print_output(&output);
+                return print_output("create_new_wallet force", &output);
             }
         } else {
             return Err("Failed to create wallet".into());
