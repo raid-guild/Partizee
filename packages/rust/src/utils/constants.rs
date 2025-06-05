@@ -1,5 +1,6 @@
 // default account settings
 pub const DEFAULT_ACCOUNT_NAME: &str = "account_{index}";
+pub const ACCOUNT_FILE_EXTENSION: &str = "acc";
 pub const PARTISIA_COIN_TYPE: u32 = 3757;
 pub const DEFAULT_ACCOUNT_INDEX: u32 = 44;
 pub const DEFAULT_NETWORK: &str = "testnet";

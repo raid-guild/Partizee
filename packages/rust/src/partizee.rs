@@ -1,13 +1,16 @@
 use clap::Parser;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::commands::account::Account;
+use crate::commands::account::{create_new_account, Account};
 use crate::commands::compile::ProjectCompiler;
-use crate::commands::deploy::DeployProject;
+use crate::commands::deploy::{DeployConfigs, DeploymentWithAccount};
 use crate::commands::new::NewProject;
-use crate::utils::clap_cli::{AccountSharedArgs, AccountSubcommands, Cargo, Commands};
-use crate::utils::menus::{new_account_menu, compile_menu, deploy_menu};
+use crate::utils::clap_cli::{AccountSubcommands, Cargo, Commands};
+use crate::utils::menus::{
+    compile_menu, create_new_account_menu, deploy_menu, select_account_menu,
+};
 
 pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
     let cargo_cli: Cargo = Cargo::parse();
@@ -57,110 +60,142 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     project_compiler.compile_contracts()?;
                 }
                 Commands::Deploy {
+                    interactive,
                     custom_net,
-                    custom_path,
-                    custom_root,
-                    custom_deployer_args,
+                    contract_names,
+                    deploy_args,
+                    account_path,
                 } => {
-                    let net: Option<String> = if custom_net.is_some() {
-                        Some(custom_net.unwrap())
-                    } else {
-                        None
-                    };
-                    let path: Option<PathBuf> = if custom_path.is_some() {
-                        Some(PathBuf::from(custom_path.as_ref().unwrap()))
-                    } else {
-                        None
-                    };
-                    let root: Option<PathBuf> = if custom_root.is_some() {
-                        Some(PathBuf::from(custom_root.as_ref().unwrap()))
-                    } else {
-                        None
-                    };
-                    let deployer_args: Option<Vec<String>> = if custom_deployer_args.is_some() {
-                        Some(custom_deployer_args.unwrap())
-                    } else {
-                        None
-                    };
+                    let mut interactive: bool = interactive;
+                    // if all args are empty open interactive menu
+                    if interactive && custom_net.is_none() && contract_names.is_none()
+                        && deploy_args.is_none()
+                        && account_path.is_none()
+                    {
+                        interactive = true;
+                    }
+                    let mut deployer: DeploymentWithAccount;
+                    // format deploy_args into a HashMap
+                    let deployer_args: Option<HashMap<String, Vec<String>>> =
+                        if deploy_args.is_some() {
+                            let mut contract_map: HashMap<String, Vec<String>> = HashMap::new();
+                            for entry in &deploy_args.unwrap() {
+                                if let Some((name, args)) = entry.split_first() {
+                                    contract_map.insert(name.clone(), args.to_vec());
+                                }
+                            }
+                            Some(contract_map)
+                        } else {
+                            None
+                        };
 
-                    // create a new DeployProject with the provided args
-                    let config = DeployProject {
-                        network: net,
-                        contract_path: path,
-                        project_root: root,
-                        deployer_args: deployer_args,
-                        account_name: None,
-                        account: None,
+                    // format account_path into a PathBuf
+                    let path_to_account: Option<PathBuf> = if account_path.is_some() {
+                        Some(PathBuf::from(account_path.unwrap()))
+                    } else {
+                        None
                     };
+                    // create a new DeployConfigs with the provided args
+                    let config = DeployConfigs {
+                        network: custom_net.clone(),
+                        contract_names: contract_names.clone(),
+                        deployer_args: deployer_args.clone(),
+                        path_to_account: path_to_account.clone(),
+                    };
+                    // if interactive, get options from interactive menu and pass deployer_args as needed
+                    if interactive {
+                        let menu_args: DeployConfigs = deploy_menu(config)?;
+                        if path_to_account.is_some() {
+                            deployer =
+                                DeploymentWithAccount::new(menu_args, path_to_account.clone());
+                        } else {
+                            deployer = DeploymentWithAccount::new(menu_args, None);
+                        }
+                        deployer.deploy_contracts();
+                    } else {
+                        let net: Option<String> = if custom_net.is_some() {
+                            Some(custom_net.unwrap())
+                        } else {
+                            None
+                        };
+                        let names: Option<Vec<String>> = if contract_names.is_some() {
+                            Some(contract_names.unwrap())
+                        } else {
+                            None
+                        };
 
-                    // get options from interactive menu and pass deployer_args as needed
-                    let menu_args: DeployProject = deploy_menu(config)?;
-                    // create a new DeployProject with the provided args
-                    let mut deploy_project: DeployProject = DeployProject::new(menu_args);
-                    // deploy the contract
-                    deploy_project.deploy_contracts(None)?;
+                        // create a new DeployProject with the provided args
+                        let config = DeployConfigs {
+                            network: net,
+                            contract_names: names,
+                            deployer_args: deployer_args,
+                            path_to_account: None,
+                        };
+                        deployer = DeploymentWithAccount::new(config, None);
+                        // deploy the contract
+                        deployer.deploy_contracts();
+                    }
                 }
                 Commands::Account { commands } => match commands {
                     AccountSubcommands::AccountCreate { shared_args } => {
                         if shared_args.interactive {
-                            let account_args: Account = new_account_menu().unwrap();
-                            let mut account: Account = Account::new(
-                                shared_args.name.as_deref(),
-                                shared_args.network.as_deref(),
-                                None,
-                                None,
-                            );
-                            account.create_wallet(shared_args.network.as_deref());
-                        } else {
-                            let mut account: Account = Account::new(
-                                shared_args.name.as_deref(),
-                                shared_args.network.as_deref(),
-                                None,
-                                None,
-                            );
-                            account.create_wallet(shared_args.network.as_deref());
+                            let account_args: Account =
+                                create_new_account_menu().expect("Failed to create new account");
+                            create_new_account(&account_args.network)?;
                         }
                     }
                     AccountSubcommands::AccountShow { shared_args } => {
                         if shared_args.interactive {
+                            let accout_path: PathBuf =
+                                select_account_menu().expect("Failed to select account");
                             let mut account: Account = Account::new(
-                                shared_args.name.as_deref(),
+                                Some(&accout_path),
                                 shared_args.network.as_deref(),
                                 None,
                                 None,
-                            );;
-                            account.show_account(shared_args.network.as_deref(), shared_args.address.as_deref());
+                            )
+                            .unwrap();
+                            let account_output: String = account.show_account(
+                                shared_args.network.as_deref(),
+                                shared_args.address.as_deref(),
+                            )?;
+                            println!("{}", account_output);
                         } else {
-                            let mut account: Account = Account::new(
-                                shared_args.name.as_deref(),
-                                shared_args.network.as_deref(),
-                                None,
-                                None,
-                            );
-                            account.show_account(shared_args.network.as_deref());
+                            if shared_args.network.is_some() && shared_args.address.is_some() {
+                                let account: Account = Account::default();
+                                let account_output: String = account.show_account(
+                                    shared_args.network.as_deref(),
+                                    shared_args.address.as_deref(),
+                                )?;
+                                println!("{}", account_output);
+                            } else if shared_args.network.is_some() && shared_args.address.is_none()
+                            {
+                                let account: Account = Account::default();
+                                let account_output: String = account.show_account(
+                                    shared_args.network.as_deref(),
+                                    shared_args.address.as_deref(),
+                                )?;
+                                println!("{}", account_output);
+                            } else {
+                                println!("No account found");
+                            }
                         }
                     }
                     AccountSubcommands::AccountMintGas { shared_args } => {
                         if shared_args.interactive {
+                            let account_path: PathBuf =
+                                select_account_menu().expect("Failed to select account");
                             let account: Account = Account::new(
-                                shared_args.name.as_deref(),
+                                Some(&account_path),
                                 shared_args.network.as_deref(),
-                                shared_args.path.as_deref(),
-                                shared_args.public_key.as_deref(),
-                                shared_args.address.as_deref(),
-                                shared_args.account_index,
-                            );
-                            account.mint_gas();
+                                None,
+                                None,
+                            )
+                            .unwrap();
+                            account.mint_gas().expect("Failed to mint gas");
                         } else {
-                            let account: Account = Account::new(
-                                shared_args.name.as_deref(),
-                                shared_args.network.as_deref(),
-                                shared_args.path.as_deref(),
-                                shared_args.public_key.as_deref(),
-                                shared_args.address.as_deref(),
-                                shared_args.account_index,
-                            );
-                            account.mint_gas();
+                            let account: Account = Account::default();
+                            account.mint_gas().expect("Failed to mint gas");
                         }
                     }
                 },

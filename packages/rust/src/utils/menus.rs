@@ -1,9 +1,10 @@
 use crate::commands::account::Account;
 use crate::commands::compile::ProjectCompiler;
-use crate::commands::deploy::DeployProject;
+use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
 use crate::utils::utils::{find_workspace_root, get_pk_files};
 use cliclack::{confirm, input, intro, outro, select};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub fn new_project_menu() -> Result<ProjectConfig, Box<dyn std::error::Error>> {
@@ -213,11 +214,13 @@ pub fn compile_menu(
     })
 }
 
-pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::error::Error>> {
+pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::error::Error>> {
     let network: Option<String>;
-    let path: Option<PathBuf>;
-    let project_root: Option<PathBuf>;
-    let mut deployer_args_vec: Vec<String> = Vec::new();
+    let path_to_account: Option<PathBuf>;
+
+    let mut custom_names: Option<Vec<String>> = None;
+    let mut deployer_args_mapping: HashMap<String, Vec<String>> = HashMap::new();
+
     if config.network.is_none() {
         let custom_network: String = input("Enter the network to deploy to eg. testnet, mainnet")
             .placeholder("testnet")
@@ -233,79 +236,110 @@ pub fn deploy_menu(config: DeployProject) -> Result<DeployProject, Box<dyn std::
         network = config.network;
     };
 
-    if config.contract_path.is_none() {
-        let use_custom_path = confirm("Would you like to specify a custom path to the contract to deploy? (if No: we'll use the default path)")
+    if config.contract_names.is_none() {
+        let use_custom_names = confirm("Would you like to specify specific names and arguments of the contracts you'd like to deploy? \n (if No: we'll deploy all contracts in the contracts directory)")
         .initial_value(false)
         .interact()?;
-        if use_custom_path {
-            let custom_path: String = input("Enter the path to the contract to deploy")
-                .placeholder("target/wasm32-unknown-unknown/release/counter.pbc")
+        if use_custom_names {
+            loop {
+                let custom_name: String = input(
+                    "Enter the name of on of the contracts you'd like to deploy. \n e.g. counter",
+                )
+                .placeholder("counter")
                 .validate(|input: &String| {
                     if input.trim().is_empty() {
-                        Err("Need to specify a path to the contract to deploy")
-                    } else if !PathBuf::from(input.trim()).is_file() {
-                        Err("Path is not a file")
-                    } else if !PathBuf::from(input.trim()).exists() {
-                        Err("File does not exist")
+                        Err("Need to specify a name of the contract to deploy")
                     } else {
                         Ok(())
                     }
                 })
                 .interact()?;
-            path = Some(PathBuf::from(custom_path));
-        } else {
-            path = None;
-        }
-    } else {
-        path = config.contract_path;
-    };
 
-    if config.deployer_args.is_none() {
-        let add_deployer_args = confirm("Would you like to specify deployer arguments? (if No: we'll use the default arguments)")
-        .initial_value(false)
-        .interact()?;
+                // get deployer args for the contract
+                let deployer_args: Vec<String> = get_deployer_args(&custom_name).unwrap();
+                deployer_args_mapping.insert(custom_name.clone(), deployer_args);
+                custom_names.as_mut().unwrap().push(custom_name);
 
-        if add_deployer_args {
-            loop {
-                let deployer_arg: String = input("Enter deployer argument")
-                    .placeholder("pbc cli arg")
-                    .interact()?;
-                if !deployer_arg.trim().is_empty() {
-                    deployer_args_vec.push(deployer_arg);
-                }
-                let another: bool = confirm("Enter another argument? (y/n)")
+                let another: bool = confirm("Enter another contract name? (y/n)")
                     .initial_value(false)
                     .interact()?;
                 if !another {
                     break;
                 }
             }
+        } else {
+            custom_names = None;
         }
+    } else {
+        custom_names = config.contract_names;
     }
 
-    if config.project_root.is_none() {
-        project_root = find_workspace_root();
+    if config.path_to_account.is_some() {
+        path_to_account = config.path_to_account;
     } else {
-        project_root = config.project_root;
-    };
-
-    let deployer_args: Option<Vec<String>> = if deployer_args_vec.len() > 0 {
-        Some(deployer_args_vec)
+        // ask if user wants to create a new account
+        let select_account: bool = confirm("Would you like to select an existing account?")
+            .initial_value(false)
+            .interact()?;
+        if select_account {
+            let selected_account: PathBuf = select_account_menu()?;
+            path_to_account = Some(selected_account);
+        } else {
+            path_to_account = None;
+        }
+    }
+    let deployer_args: Option<HashMap<String, Vec<String>>> = if deployer_args_mapping.len() > 0 {
+        Some(deployer_args_mapping)
     } else {
         None
     };
 
-    Ok(DeployProject {
+    Ok(DeployConfigs {
         network: network,
-        contract_path: path,
-        project_root: project_root,
+        contract_names: custom_names,
         deployer_args: deployer_args,
-        account_name: None,
-        account: None,
+        path_to_account: path_to_account,
     })
 }
 
-pub fn new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
+fn get_deployer_args(contract_name: &str) -> Option<Vec<String>> {
+    let mut deployer_args_vec: Vec<String> = Vec::new();
+    let add_deployer_args = confirm(format!("Does the {} contract need deployer arguments? \n Please enter them one at a time in the order needed for initialization)", contract_name))
+        .initial_value(false)
+        .interact().unwrap();
+
+    if add_deployer_args {
+        loop {
+            let deployer_arg: String = input("Enter deployer argument")
+                .placeholder("pbc cli arg")
+                .validate(|input: &String| {
+                    if input.trim().is_empty() {
+                        Err("Deployer argument cannot be empty")
+                    } else {
+                        Ok(())
+                    }
+                })
+                .interact()
+                .unwrap();
+
+            if !deployer_arg.trim().is_empty() {
+                deployer_args_vec.push(deployer_arg);
+            }
+            let another: bool = confirm("Enter another argument? (y/n)")
+                .initial_value(false)
+                .interact()
+                .unwrap();
+            if !another {
+                break;
+            }
+        }
+    } else {
+        return None;
+    }
+    Some(deployer_args_vec)
+}
+
+pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     // ask if user wants to force create a new Wallet
     let force_create: Result<_, std::io::Error> = confirm(
         "Would you like to force create a new Wallet? (yes will overwrite the existing Wallet)",
@@ -314,28 +348,57 @@ pub fn new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     .interact();
     return Ok(force_create.unwrap());
 }
-pub fn custom_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
 
-    let account_name_input: Option<String> = input_optional("Enter the account name (hit enter to skip)", Some("my-account"), None)?;
-    let account_network_input: Option<String> = input_optional("Enter the account network (hit enter to skip, default is testnet)", Some("testnet"), None)?;
-    let account_address_input: Option<String> = input_optional("Enter the account address (hit enter to skip)", Some("0x1234567890"), None)?;
-    let account_private_key_input: Option<String> = input_optional("Enter the account private key, must be private key for entered address if address was entered otherwise address will be generated from the private key (hit enter to skip)", Some("01234567890"), None)?;
+pub fn custom_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
+    let path_to_pk: Option<String> = input_optional("Enter the path to the account private key file (hit enter to skip if no file exists and you want to enter in the private key manually)", None, None)?;
+    let account_network_input: Option<String> = input_optional(
+        "Enter the account network. e.g. testnet, mainnet, <custom_rpc_url> (hit enter to skip, default is testnet)",
+        Some("testnet"),
+        None,
+    )?;
+    let account_address_input: Option<String> = input_optional(
+        "Optional: Enter the account address (hit enter to skip)",
+        Some("0x1234567890"),
+        None,
+    )?;
+    let account_private_key_input: Option<String> = input_optional("Optional: Enter the account private key, must be private key for entered address if address was entered otherwise address will be generated from the private key (hit enter to skip)", Some("01234567890"), None)?;
+    let pathbuf_to_pk: Option<PathBuf> = if path_to_pk.is_some() {
+        Some(PathBuf::from(path_to_pk.unwrap()))
+    } else {
+        None
+    };
     // check if address and private key are provided together
     if account_address_input.is_some() && account_private_key_input.is_none() {
         return Err("Private key is required if address is provided".into());
     }
     if account_address_input.is_some() && account_private_key_input.is_some() {
         // check if private key is valid for the address
-        let account: Account = Account::new(account_name_input.as_deref(), account_network_input.as_deref(), account_address_input.as_deref(), account_private_key_input.as_deref());
+        let account: Account = Account::new(
+            pathbuf_to_pk.as_ref(),
+            account_network_input.as_deref(),
+            account_address_input.as_deref(),
+            account_private_key_input.as_deref(),
+        )
+        .unwrap();
         if account.address.is_none() {
             return Err("Private key is not valid for the entered address".into());
         }
     }
-    let account: Account = Account::new(account_name_input.as_deref(), account_network_input.as_deref(), account_address_input.as_deref(), account_private_key_input.as_deref());
+    let account: Account = Account::new(
+        pathbuf_to_pk.as_ref(),
+        account_network_input.as_deref(),
+        account_address_input.as_deref(),
+        account_private_key_input.as_deref(),
+    )
+    .unwrap();
     Ok(account)
 }
 
-fn input_optional(prompt: &str, placeholder: Option<&str>, default: Option<&str>) -> Result<Option<String>, Box<dyn std::error::Error>> {
+fn input_optional(
+    prompt: &str,
+    placeholder: Option<&str>,
+    default: Option<&str>,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let mut inp = input(prompt);
     if let Some(ph) = placeholder {
         inp = inp.placeholder(ph);
@@ -344,38 +407,45 @@ fn input_optional(prompt: &str, placeholder: Option<&str>, default: Option<&str>
         inp = inp.default_input(def);
     }
     let value: String = inp.interact()?;
-    Ok(if value.trim().is_empty() { None } else { Some(value) })
+    Ok(if value.trim().is_empty() {
+        None
+    } else {
+        Some(value)
+    })
 }
-pub fn create_new_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
-    let create_new: Result<&'static str, std::io::Error>  = select("Would you like to create a new account? (yes will create a new account)")
-        .item("default", 1, "Create a new account with the default settings")
-        .item("custom", 2, "Create a new account with custom settings")
-        .item("cancel", 3, "Cancel")
-        .interact();
 
-        match create_new {
-            Ok(account_option) => {
-                match account_option {
-                    "default" => {
-                        return Ok(Account::default());
-                    }
-                    "custom" => { 
-                        return custom_account_menu();
-                    }
-                    "cancel" => {
-                        return Err("Cancel".into());
-                    }
-                    _ => {
-                        return Err("Invalid account option".into());
-                    }
-                }
+pub fn create_new_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
+    let create_new: Result<&'static str, std::io::Error> =
+        select("Would you like to create a new account?")
+            .item(
+                "default",
+                1,
+                "Create a new testnet account with the default settings",
+            )
+            .item("custom", 2, "Create a new account with custom settings")
+            .item("cancel", 3, "Cancel")
+            .interact();
+
+    match create_new {
+        Ok(account_option) => match account_option {
+            "default testnet" => {
+                return Ok(Account::default());
             }
-            Err(e) => {
-                return Err(e.into());
+            "custom" => {
+                return custom_account_menu();
             }
+            "cancel" => {
+                panic!("Cancelling account creation");
+            }
+            _ => {
+                return Err("Invalid account option".into());
+            }
+        },
+        Err(e) => {
+            return Err(e.into());
         }
     }
-
+}
 
 pub fn select_account_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // ask if user wants to select an account
@@ -390,45 +460,35 @@ pub fn select_account_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
             return Err("No account files found".into());
         } else {
             // get names and indices of accounts
-            let account_names: Vec<String> = account_files.iter().map(|file| file.file_name().unwrap().to_str().unwrap().to_string()).collect();
-            let account_indecies: Vec<u32> = account_files.iter().enumerate().map(|(index, _)| index as u32).collect();
+            let account_names: Vec<String> = account_files
+                .iter()
+                .map(|file| file.file_name().unwrap().to_str().unwrap().to_string())
+                .collect();
+            let account_indecies: Vec<u32> = account_files
+                .iter()
+                .enumerate()
+                .map(|(index, _)| index as u32)
+                .collect();
             // create vec of tuples with name, and index
-            let account_tuples: Vec<(String,String, String)> = account_names.iter().zip(account_indecies.iter()).map(|(name, index)| (name.clone(), String::from(index.to_string()), String::from(""))).collect();
+            let account_tuples: Vec<(String, String, String)> = account_names
+                .iter()
+                .zip(account_indecies.iter())
+                .map(|(name, index)| {
+                    (
+                        name.clone(),
+                        String::from(index.to_string()),
+                        String::from(""),
+                    )
+                })
+                .collect();
             // open menu to select an account
-            let selected_index = select("pick an account").items(&account_tuples).interact()?;
+            let selected_index = select("pick an account")
+                .items(&account_tuples)
+                .interact()?;
             let selected_account = account_files[selected_index.parse::<usize>().unwrap()].clone();
             return Ok(selected_account);
         }
     } else {
         return Err("No account files found".into());
     }
-}
-
-pub fn contract_deploy_args(
-    contract_name: &str,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut deployer_args: Vec<String> = Vec::new();
-    let needs_deployer_args: bool = confirm(
-        "Does this contract need deployer arguments? (if No: we'll use the default arguments)",
-    )
-    .initial_value(false)
-    .interact()?;
-    if needs_deployer_args {
-        loop {
-            let deployer_arg: String =
-                input(format!("Enter deployer argument for {}", contract_name))
-                    .placeholder("pbc cli arg")
-                    .interact()?;
-            if !deployer_arg.trim().is_empty() {
-                deployer_args.push(deployer_arg);
-            }
-            let another: bool = confirm("Enter another argument? (y/n)")
-                .initial_value(false)
-                .interact()?;
-            if !another {
-                break;
-            }
-        }
-    }
-    Ok(deployer_args)
 }

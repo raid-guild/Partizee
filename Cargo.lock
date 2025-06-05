@@ -1695,6 +1695,7 @@ dependencies = [
  "hex",
  "hmac-sha512",
  "k256",
+ "pbc_abi",
  "pbc_contract_codegen",
  "pbc_contract_common",
  "pbc_lib",

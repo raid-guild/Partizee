@@ -19,6 +19,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 # tokio = "1.35.0"
 tokio-test = "0.4.4"
 pbc_contract_common = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }
+pbc_abi = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }
 pbc_contract_codegen = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }
 pbc_traits = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }
 pbc_lib = { git = "https://git@gitlab.com/partisiablockchain/language/contract-sdk.git", tag = "v.16.90.0" }

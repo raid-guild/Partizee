@@ -65,7 +65,7 @@ pub enum Commands {
     #[clap(about = "compile your dapp")]
     Compile {
         #[clap(
-            long = "file",
+            long = "files",
             short = 'f',
             help = "Specify specific files to compile",
             num_args = 1..,
@@ -85,7 +85,7 @@ pub enum Commands {
 
         #[clap(
             long = "additional-args",
-            short = 'c',
+            short = 'a',
             help = "Additional arguments that will be passed along to compile cli command",
             num_args = 1..,
             allow_hyphen_values = true
@@ -96,27 +96,37 @@ pub enum Commands {
     #[clap(about = "deploy your dapp")]
     Deploy {
         #[clap(
+            help = "use interactive menu to deploy",
+            short = 'i',
+            long = "interactive"
+        )]
+        interactive: bool,
+        #[clap(
             help = "select mainnet or testnet, if no thing is specified, it defaults to testnet",
-            short = 'n',
-            long = "net"
+            short = 'c',
+            long = "chain"
         )]
         custom_net: Option<String>,
         #[clap(
-            help = "enter the path to the contract to deploy",
-            short = 'p',
-            long = "path"
+            help = "enter the names of the contracts to deploy",
+            short = 'n',
+            long = "names",
+            num_args = 1..,
         )]
-        custom_path: Option<String>,
-        #[clap(help = "path to the project root", short = 'r', long = "root")]
-        custom_root: Option<String>,
+        contract_names: Option<Vec<String>>,
         #[clap(
-          help = "additional deployer arguments to pass to deploy cli command",
-          short = 'd',
-          long = "deployer-args",
-          num_args = 0..,
-          allow_hyphen_values = true)]
-        custom_deployer_args: Option<Vec<String>>,
+            help = "contract name followed by its arguments, e.g. --deploy-args MyContract arg1 arg2",
+            long = "deploy-args",
+            short = 'd',
+            num_args = 1..,
+            value_parser = clap::builder::NonEmptyStringValueParser::new(),
+            action = clap::ArgAction::Append
+        )]
+        deploy_args: Option<Vec<Vec<String>>>,
+        #[clap(help = "path to the account", short = 'a', long = "account")]
+        account_path: Option<String>,
     },
+
     #[clap(about = "create a new account")]
     Account {
         #[clap(subcommand)]
