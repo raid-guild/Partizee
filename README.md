@@ -10,6 +10,21 @@ Partizee is a CLI tool for creating and deploying full-stack Partisia dApps. It 
 
 ## Installation
 
+### Quick Install
+
+You can use the provided install script to build and install the CLI to your local bin directory:
+
+```sh
+./install.sh
+```
+
+This will build the project and copy the `partizee` binary to `~/.local/bin/partizee`.  
+Make sure `~/.local/bin` is in your `PATH`:
+
+```sh
+export PATH="$PATH:$HOME/.local/bin"
+```
+
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable recommended)

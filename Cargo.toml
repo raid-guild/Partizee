@@ -1,6 +1,6 @@
 [workspace]
 name = "partizee"
-members = ["packages/rust"]
+members = ["partizee_cli"]
 resolver = "2"
 
 [workspace.package]
