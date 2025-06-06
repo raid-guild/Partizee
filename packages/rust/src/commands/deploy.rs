@@ -1,4 +1,4 @@
-use crate::commands::account::Account;
+use crate::commands::user_profile::Profile;
 use crate::utils::constants::DEFAULT_NETWORK;
 use crate::utils::fs_nav::{
     find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root,
@@ -16,14 +16,15 @@ pub struct DeployConfigs {
     pub contract_names: Option<Vec<String>>,
     pub network: Option<String>,
     pub deployer_args: Option<HashMap<String, Vec<String>>>,
-    pub path_to_account: Option<PathBuf>,
+    pub path_to_pk: Option<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Deployment {
+pub struct Deployment {
     pub name: String,
     pub address: String,
     pub args: Vec<String>,
+    pub timestamp: String,
 }
 
 #[derive(Debug, Clone)]
@@ -31,12 +32,12 @@ pub struct Deployer {
     pub network: String,
     pub contract_names: Vec<String>,
     pub deployer_args: HashMap<String, Vec<String>>,
-    pub path_to_account: PathBuf,
+    pub path_to_pk: PathBuf,
 }
 #[derive(Debug, Clone)]
-pub struct DeploymentWithAccount {
+pub struct DeploymentWithProfile {
     deploy_configs: Deployer,
-    account: Account,
+    account: Profile,
 }
 
 impl Default for DeployConfigs {
@@ -45,17 +46,17 @@ impl Default for DeployConfigs {
             contract_names: None,
             network: Some(DEFAULT_NETWORK.to_string()),
             deployer_args: None,
-            path_to_account: None,
+            path_to_pk: None,
         }
     }
 }
 
 // default deployment with account, selects either the first account found or creates a new account if none are found
-impl Default for DeploymentWithAccount {
+impl Default for DeploymentWithProfile {
     fn default() -> Self {
-        let account: Account = Account::default();
+        let account: Profile = Profile::default();
         let mut deploy_project: DeployConfigs = DeployConfigs::default();
-        deploy_project.path_to_account = Some(account.path.clone());
+        deploy_project.path_to_pk = Some(account.path_to_pk.clone());
         let deployer: Deployer = Deployer {
             network: deploy_project
                 .network
@@ -66,8 +67,8 @@ impl Default for DeploymentWithAccount {
                 .deployer_args
                 .clone()
                 .unwrap_or(HashMap::new()),
-            path_to_account: deploy_project
-                .path_to_account
+            path_to_pk: deploy_project
+                .path_to_pk
                 .clone()
                 .expect("No account found"),
         };
@@ -79,10 +80,10 @@ impl Default for DeploymentWithAccount {
 }
 
 #[allow(dead_code)]
-impl DeploymentWithAccount {
+impl DeploymentWithProfile {
     pub fn new(deploy_config: Deployer) -> Self {
-        let deployment_account: Account =
-            load_account_from_pk_file(&deploy_config.path_to_account, &deploy_config.network)
+        let deployment_account: Profile =
+            load_account_from_pk_file(&deploy_config.path_to_pk, &deploy_config.network)
                 .expect("Failed to load account");
         Self {
             deploy_configs: deploy_config,
@@ -179,6 +180,8 @@ impl DeploymentWithAccount {
         let contract_args_hashmap: HashMap<String, Vec<String>> =
             self.deploy_configs.deployer_args.clone();
 
+        let mut deployments: Vec<Deployment> = Vec::new();
+
         for (index, name) in names.iter().enumerate() {
             // get name of current contract
             let contract_args: Vec<String> =
@@ -219,11 +222,15 @@ impl DeploymentWithAccount {
                     result.err().unwrap()
                 );
             } else {
-                let deployment = result.unwrap();
-                save_deployment(deployment, &project_root)?;
-                println!("Contract deployed: {}", name);
+                let deployment = result.unwrap_or_else(|e| {
+                    panic!("Error deploying contract {}: {:?}", name, e);
+                });
+                deployments.push(deployment);
+
             }
         }
+
+        save_deployments(deployments, &project_root)?;
 
         Ok(())
     }
@@ -237,8 +244,8 @@ impl DeploymentWithAccount {
         contract_zkwa_path: Option<PathBuf>,
         args: Vec<String>,
     ) -> Result<Deployment, Box<dyn std::error::Error>> {
-        // cargo partisia-contract transaction deploy --gas 10000000 --privatekey YourAccountFile.pk your_compiled_contract_file.pbc + contract inputs separated by spaces (strings in quotes)
-        let private_key_path: PathBuf = self.account.path.clone();
+        // cargo partisia-contract transaction deploy --gas 10000000 --privatekey YourProfileFile.pk your_compiled_contract_file.pbc + contract inputs separated by spaces (strings in quotes)
+        let private_key_path: PathBuf = self.account.path_to_pk.clone();
 
         let mut command: Command = Command::new("cargo");
         command
@@ -299,16 +306,22 @@ impl DeploymentWithAccount {
                 return Err("Need either pbc or wasm + abi or zkwa + abi paths provided".into());
             }
         }
-        // log the final command
 
         command.args(&args);
-        println!("Final command: {:?}", command);
+
         let deployment_tx: Output = command.output()?;
 
         if deployment_tx.status.success() {
             let output_str = String::from_utf8_lossy(&deployment_tx.stdout);
-            let address = output_str.lines().nth(1).unwrap_or("").to_string();
-            let deployment = Deployment { name: name.to_string(), address, args };
+            let address = output_str.split(":").nth(1).unwrap_or("").split("\n").nth(0).unwrap_or("").trim().to_string();
+            if address.is_empty() {
+                return Err("Failed to get address from deployment output".into());
+            }
+            let timestamp: String = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_else(|_| {
+                panic!("Failed to get timestamp");
+            }).as_secs().to_string();
+            let deployment = Deployment { name: name.to_string(), address, args, timestamp };
+            println!("{}", &output_str);
             return Ok(deployment);
         } else {
             return Err(format!("Failed to deploy contract: {:?}", deployment_tx).into());
@@ -317,7 +330,7 @@ impl DeploymentWithAccount {
 }
 
 
-fn save_deployment(deployment: Deployment, project_root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn save_deployments(deployments: Vec<Deployment>, project_root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
                  // write deployment to target directory
                  let target_dir: PathBuf = find_dir(&project_root, "target/wasm32-unknown-unknown/release").unwrap_or_else(|| {
                     panic!("Failed to find target directory");
@@ -327,15 +340,35 @@ fn save_deployment(deployment: Deployment, project_root: &PathBuf) -> Result<(),
                 if !deployment_dir.exists() {
                     fs::create_dir_all(&deployment_dir).unwrap();
                 }
-                // create filename from timestamp
-                let timestamp: String = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-                let deployment_file: PathBuf = deployment_dir.join(format!("deployment-{}.json", timestamp));
+
+                // get current deployment-latest.json and rename it to deployment-<timestamp>.json
+                let latest_path: PathBuf = deployment_dir.join("deployment-latest.json");
+                if latest_path.exists() {
+                    let timestamp: String = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
+                    let new_filename: PathBuf = deployment_dir.join(format!("deployment-{}.json", timestamp));
+                    fs::rename(&latest_path, new_filename).unwrap_or_else(|e| {
+                        eprintln!("Failed to rename deployment-latest.json: {}", e);
+                        return ();
+                    });
+                }
+
+                // create vector of deployments
+                let mut deployments_json_vec: Vec<String> = Vec::new();
+
+                for deployment in deployments {
+                
                 let deployment_json: String = serde_json::to_string(&deployment).unwrap_or_else(|e| {
                     eprintln!("Failed to serialize deployment: {}", e);
                     return "".to_string();
                 });
+                deployments_json_vec.push(deployment_json);
+                }
 
-                fs::write(deployment_file, deployment_json).unwrap_or_else(|e| {
+                let parsed_deployments: String = serde_json::to_string(&deployments_json_vec).unwrap_or_else(|e| {
+                    eprintln!("Failed to serialize deployment: {}", e);
+                    return "".to_string();
+                });
+                fs::write(&latest_path, parsed_deployments).unwrap_or_else(|e| {
                     eprintln!("Failed to write deployment: {}", e);
                     return ();
                 });
@@ -352,20 +385,20 @@ mod tests {
         let pk_files: Vec<PathBuf> = get_pk_files();
         if pk_files.len() > 0 {
             // create new project
-            let deployment_with_account: DeploymentWithAccount = DeploymentWithAccount::default();
+            let deployment_with_account: DeploymentWithProfile = DeploymentWithProfile::default();
             assert!(deployment_with_account
                 .deploy_configs
-                .path_to_account
+                .path_to_pk
                 .is_file());
-            assert_eq!(deployment_with_account.account.path.is_file().clone(), true);
+            assert_eq!(deployment_with_account.account.path_to_pk.is_file().clone(), true);
             assert_eq!(
-                deployment_with_account.account.path.extension().unwrap(),
+                deployment_with_account.account.path_to_pk.extension().unwrap(),
                 "pk"
             );
             assert_eq!(
                 deployment_with_account
                     .account
-                    .path
+                    .path_to_pk
                     .clone()
                     .file_name()
                     .unwrap()

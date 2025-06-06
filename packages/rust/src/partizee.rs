@@ -3,14 +3,16 @@ use clap::Parser;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::commands::account::{pbc_create_new_account, Account, AccountConfig};
+use crate::commands::user_profile::{Profile, ProfileConfig};
+use crate::utils::pbc_commands::pbc_create_new_account;
+
 use crate::commands::compile::ProjectCompiler;
-use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithAccount};
+use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
 use crate::commands::new::{NewProject, ProjectConfig};
-use crate::utils::clap_cli::{AccountSubcommands, Cargo, Commands};
-use crate::utils::fs_nav::get_all_contract_names;
+use crate::utils::clap_cli::{ProfileSubcommands, Cargo, Commands};
+use crate::utils::fs_nav::{get_pk_files, get_all_contract_names};
 use crate::utils::menus::{
-    compile_menu, create_new_account_menu, deploy_menu, new_project_menu, select_account_menu,
+    compile_menu, create_new_profile_menu, create_new_pbc_account_menu, deploy_menu, new_project_menu, select_pk_menu, 
 };
 
 #[allow(unused_variables, unused_assignments)]
@@ -67,7 +69,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     custom_net,
                     contract_names,
                     deploy_args,
-                    account_path,
+                    pk_path,
                 } => {
                     let mut use_interactive: bool = interactive;
                     // if all args are empty open interactive menu
@@ -75,15 +77,33 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                         && custom_net.is_none()
                         && contract_names.is_none()
                         && deploy_args.is_none()
-                        && account_path.is_none()
+                        && pk_path.is_none()
                     {
                         use_interactive = true;
                     }
-                    let mut deployer: DeploymentWithAccount;
+                    let mut deployer: DeploymentWithProfile;
 
-                    // format account_path into a PathBuf
-                    let path_to_account: Option<PathBuf> =
-                        account_path.clone().map(|path| PathBuf::from(path));
+                    // format pk_path into a PathBuf
+                    let mut path_to_pk: Option<PathBuf> =
+                        pk_path.clone().map(|path| PathBuf::from(path));
+                    if path_to_pk.is_none() {
+                        // find first pk file in the project root
+                        let pk_files:Vec<PathBuf>  = get_pk_files();
+                        if pk_files.len() == 0 {
+                            let create_pbc_account_network: String = create_new_pbc_account_menu()?;
+
+                                pbc_create_new_account(&create_pbc_account_network)?;
+                                let pk_files:Vec<PathBuf>  = get_pk_files();
+                                if pk_files.len() > 0 {
+                                    path_to_pk = Some(pk_files[0].clone());
+                                } else {
+                                    return Err("Failed to create new account".into());
+                                }
+    
+                            } else {
+                            path_to_pk = Some(pk_files[0].clone());
+                        }
+                    }
 
                     let mut contracts_to_deploy: Option<Vec<String>> = None;
                     // get list of all contract names
@@ -107,7 +127,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                         network: custom_net,
                         contract_names: contracts_to_deploy,
                         deployer_args: deployer_args_hashmap,
-                        path_to_account: path_to_account,
+                        path_to_pk: path_to_pk,
                     };
                     // if interactive, get options from interactive menu and pass deployer_args as needed
                     if interactive {
@@ -116,59 +136,58 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                             network: menu_args.network.unwrap_or("".to_string()),
                             contract_names: menu_args.contract_names.unwrap_or(Vec::new()),
                             deployer_args: menu_args.deployer_args.unwrap_or(HashMap::new()),
-                            path_to_account: menu_args.path_to_account.unwrap_or(PathBuf::from("")),
+                            path_to_pk: menu_args.path_to_pk.unwrap_or(PathBuf::from("")),
                         };
 
-                        deployer = DeploymentWithAccount::new(deployer_args);
+                        deployer = DeploymentWithProfile::new(deployer_args);
                     } else {
                         let deployer_args: Deployer = Deployer {
                             network: config.network.unwrap_or("".to_string()),
                             contract_names: config.contract_names.unwrap_or(Vec::new()),
                             deployer_args: config.deployer_args.unwrap_or(HashMap::new()),
-                            path_to_account: config.path_to_account.unwrap_or(PathBuf::from("")),
+                            path_to_pk: config.path_to_pk.unwrap_or(PathBuf::from("")),
                         };
-                        deployer = DeploymentWithAccount::new(deployer_args);
+                        deployer = DeploymentWithProfile::new(deployer_args);
                     }
 
                     let result = deployer.deploy_contracts();
-                    if result.is_ok() {
-                        println!("Contracts deployed successfully");
-                    } else {
-                        println!("Contracts deployment failed");
+                    if !result.is_ok() {
+                        eprintln!("Contracts deployment failed");
                     }
                 }
-                Commands::Account { commands } => match commands {
-                    AccountSubcommands::AccountCreate { shared_args } => {
+                Commands::Profile { commands } => match commands {
+                    ProfileSubcommands::ProfileCreate { shared_args } => {
                         if shared_args.interactive {
-                            let account_args: Account = create_new_account_menu()
-                                .map_err(|e| format!("Failed to create new account: {}", e))?;
-                            pbc_create_new_account(&account_args.network)?;
+                            let create_pbc_account: String = create_new_pbc_account_menu()?;
+                            if create_pbc_account.len() > 0 {
+                                pbc_create_new_account(&create_pbc_account)?;
+                            }
                         }
                     }
-                    AccountSubcommands::AccountShow { shared_args } => {
+                    ProfileSubcommands::ProfileShow { shared_args } => {
                         if shared_args.interactive {
                             let accout_path: PathBuf =
-                                select_account_menu().expect("Failed to select account");
-                            let account_config: AccountConfig = AccountConfig {
+                                select_pk_menu().expect("Failed to select account");
+                            let account_config: ProfileConfig = ProfileConfig {
                                 network: shared_args.network,
                                 address: shared_args.address,
                                 private_key: None,
-                                path: Some(accout_path),
+                                path_to_pk: Some(accout_path),
                             };
-                            let account: Account = Account::new(account_config).unwrap();
+                            let account: Profile = Profile::new(account_config).unwrap();
 
                             let account_output: String = account.show_account()?;
                             println!("{}", account_output);
                         } else {
                             // Create account from provided args or use default
-                            let account_config = AccountConfig {
+                            let account_config = ProfileConfig {
                                 network: shared_args.network,
                                 address: shared_args.address,
                                 private_key: None,
-                                path: None,
+                                path_to_pk: None,
                             };
 
-                            match Account::new(account_config) {
+                            match Profile::new(account_config) {
                                 Ok(account) => {
                                     let account_output = account.show_account()?;
                                     println!("{}", account_output);
@@ -177,20 +196,20 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                    AccountSubcommands::AccountMintGas { shared_args } => {
+                    ProfileSubcommands::ProfileMintGas { shared_args } => {
                         if shared_args.interactive {
-                            let account_path: PathBuf =
-                                select_account_menu().expect("Failed to select account");
-                            let account_config: AccountConfig = AccountConfig {
+                            let pk_path: PathBuf =
+                                select_pk_menu().expect("Failed to select account");
+                            let account_config: ProfileConfig = ProfileConfig {
                                 network: shared_args.network,
                                 address: shared_args.address,
                                 private_key: None,
-                                path: Some(account_path),
+                                path_to_pk: Some(pk_path),
                             };
-                            let account: Account = Account::new(account_config).unwrap();
+                            let account: Profile = Profile::new(account_config).unwrap();
                             account.mint_gas().expect("Failed to mint gas");
                         } else {
-                            let account: Account = Account::default();
+                            let account: Profile = Profile::default();
                             account.mint_gas().expect("Failed to mint gas");
                         }
                     }
