@@ -4,7 +4,7 @@ use std::{
 };
 use tera::{Context, Tera};
 use walkdir::WalkDir;
-
+use std::error::Error;
 use crate::utils::fs_nav::find_workspace_root;
 use crate::utils::utils::COPIABLE_EXTENSIONS;
 
@@ -23,9 +23,11 @@ pub struct ProjectConfig {
 }
 
 impl NewProject {
-    pub fn new(config: ProjectConfig) -> Self {
+    pub fn new(config: ProjectConfig) -> Result<NewProject, Box<dyn Error>> {
         // install project in current directory
-        let project_root = find_workspace_root().unwrap();
+        let project_root = find_workspace_root().unwrap_or_else(|| {
+            panic!("Failed to find workspace root");
+        });
 
         // if output_dir is provided, use it, otherwise use the project name
         let output_dir = config
@@ -33,12 +35,14 @@ impl NewProject {
             .unwrap_or_else(|| format!("{}/", config.name.clone()))
             .into();
 
-        NewProject {
+        Ok(NewProject {
             dapp_name: config.name,
             output_dir,
             project_root,
-            executable_root: env!("CARGO_MANIFEST_DIR").into(),
-        }
+            executable_root: find_workspace_root().unwrap_or_else(|| {
+                panic!("Failed to find workspace root");
+            }),
+        })
     }
 
     pub fn create_project_directory(&self) -> Result<(), Box<dyn std::error::Error>> {
