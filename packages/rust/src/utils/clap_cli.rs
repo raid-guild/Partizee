@@ -77,6 +77,12 @@ pub enum Commands {
         )]
         interactive: bool,
         #[clap(
+            help = "path to the contracts directory",
+            short = 'p',
+            long = "path"
+        )]
+        path: Option<String>,
+        #[clap(
             long = "files",
             short = 'f',
             help = "Specify specific files to compile",

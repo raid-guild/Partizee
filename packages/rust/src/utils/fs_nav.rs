@@ -116,11 +116,17 @@ pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf>
 }
 // to be used during deployment to get all contract names
 pub fn get_all_contract_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let path: PathBuf = find_dir(
-        &find_workspace_root().unwrap(),
+    let path: Option<PathBuf> = find_dir(
+        &find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap())),
         "wasm32-unknown-unknown/release",
-    )
-    .unwrap();
+    );
+    if path.is_none() {
+        return Err("No contracts found, please compile contracts first".into());
+    } else {
+        let path: PathBuf = path.unwrap();
+        if !path.is_dir() {
+            return Err("No contracts found, please compile contracts first".into());
+        }
     // all
     let pbc_names: Vec<String> = find_files_with_extension(&path, "pbc")
         .into_iter()
@@ -151,6 +157,7 @@ pub fn get_all_contract_names() -> Result<Vec<String>, Box<dyn std::error::Error
         .collect();
     let unique_contract_names: HashSet<String> = contract_names.into_iter().collect();
     Ok(unique_contract_names.into_iter().collect())
+    }
 }
 
 pub fn get_pk_files() -> Vec<PathBuf> {

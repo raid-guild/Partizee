@@ -60,9 +60,21 @@ pub fn compile_menu(
     let mut build_args_vec: Vec<String> = Vec::new();
     let mut additional_args_vec: Vec<String> = Vec::new();
     let mut files_vec: Vec<String> = Vec::new();
-
+    if config.path.is_none() {
+        let use_path_menu = confirm("Would you like to specify a path to the workspace Cargo.toml directory? (if No: we'll compile all contracts in the contracts directory with default settings)")
+        .initial_value(false)
+        .interact()?;
+        if use_path_menu {
+            let path_to_workspace: String = input("Enter the path to the workspace Cargo.toml directory")
+                .placeholder("/path/to/workspace")
+                .interact()?;
+            if !path_to_workspace.trim().is_empty() {
+                files_vec.push(path_to_workspace);
+            }
+        }
+    }
     if config.files.is_none() {
-        let use_file_menu = confirm("Would you like to specify which contracts to compile? (if No: we'll compile all contracts in the contracts directory with default settings)")
+        let use_file_menu = confirm("Would you like to specify specific contracts to compile? (if No: we'll compile all contracts in the contracts directory with default settings)")
         .initial_value(false)
         .interact()?;
         if use_file_menu {
@@ -222,6 +234,7 @@ pub fn compile_menu(
 
     Ok(ProjectCompiler {
         files,
+        path: config.path,
         build_args,
         additional_args,
     })
