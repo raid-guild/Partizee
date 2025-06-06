@@ -153,16 +153,14 @@ pub struct AccountSharedArgs {
     pub(crate) interactive: bool,
     #[clap(help = "name of the account", short = 'n', long = "name")]
     pub(crate) name: Option<String>,
-    #[clap(help = "network to create account on", short = 'n', long = "network")]
+    #[clap(help = "network account will be used on", short = 'n', long = "network")]
     pub(crate) network: Option<String>,
-    #[clap(help = "path to the account", short = 'p', long = "path")]
+    #[clap(help = "path to pk file", short = 'p', long = "path")]
     pub(crate) path: Option<String>,
-    #[clap(help = "account public key", short = 'k', long = "public-key")]
-    pub(crate) public_key: Option<String>,
     #[clap(help = "account address", short = 'a', long = "address")]
     pub(crate) address: Option<String>,
-    #[clap(help = "account index", short = 'i', long = "index")]
-    pub(crate) account_index: Option<u32>,
+    #[clap(help = "account private key", short = 'k', long = "private-key")]
+    pub(crate) private_key: Option<String>,
 }
 
 #[derive(Subcommand)]

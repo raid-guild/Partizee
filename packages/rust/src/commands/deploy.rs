@@ -278,6 +278,7 @@ impl DeploymentWithAccount {
         let deployment_tx: Output = command.output()?;
 
         if deployment_tx.status.success() {
+            // TODO: write output to file for frontend to read
             return print_output("deploy_contract", &deployment_tx);
         } else {
             return print_error(&deployment_tx);
