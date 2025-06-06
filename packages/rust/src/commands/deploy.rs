@@ -6,7 +6,8 @@ use crate::utils::fs_nav::{
 };
 use std::fs;
 use serde::{Serialize, Deserialize};
-use crate::utils::utils::{load_account_from_pk_file, print_error, print_output};
+use crate::commands::compile::ProjectCompiler;
+use crate::utils::utils::load_account_from_pk_file;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -94,6 +95,17 @@ impl DeploymentWithProfile {
     /// deploy all contracts in the contracts directory
     pub fn deploy_contracts(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let project_root: PathBuf = find_workspace_root().unwrap();
+
+        // compile contracts
+        // TODO search for contracts folder and add to path
+        let project_compiler: ProjectCompiler = ProjectCompiler {
+            files: None,
+            path: None,
+            build_args: None,
+            additional_args: None,
+        };
+
+        project_compiler.compile_contracts()?;
 
         let mut names: Vec<String> = self.deploy_configs.contract_names.clone();
 
@@ -352,26 +364,18 @@ fn save_deployments(deployments: Vec<Deployment>, project_root: &PathBuf) -> Res
                     });
                 }
 
-                // create vector of deployments
-                let mut deployments_json_vec: Vec<String> = Vec::new();
 
-                for deployment in deployments {
-                
-                let deployment_json: String = serde_json::to_string(&deployment).unwrap_or_else(|e| {
-                    eprintln!("Failed to serialize deployment: {}", e);
-                    return "".to_string();
-                });
-                deployments_json_vec.push(deployment_json);
+         
+                if deployments.len() > 0 {
+                    let deployments_json: String = serde_json::to_string(&deployments).unwrap_or_else(|e| {
+                        eprintln!("Failed to write deployment: {}", e);
+                        return "".to_string();
+                    });
+                    fs::write(&latest_path, deployments_json).unwrap_or_else(|e| {
+                        eprintln!("Failed to write deployment: {}", e);
+                        return ();
+                    });
                 }
-
-                let parsed_deployments: String = serde_json::to_string(&deployments_json_vec).unwrap_or_else(|e| {
-                    eprintln!("Failed to serialize deployment: {}", e);
-                    return "".to_string();
-                });
-                fs::write(&latest_path, parsed_deployments).unwrap_or_else(|e| {
-                    eprintln!("Failed to write deployment: {}", e);
-                    return ();
-                });
                 Ok(())
 }
 #[cfg(test)]

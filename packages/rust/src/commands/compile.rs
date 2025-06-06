@@ -1,9 +1,11 @@
 use std::process::{Command, Output};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct ProjectCompiler {
     // extra files to include
     pub files: Option<Vec<String>>,
+    pub path: Option<String>,
     pub build_args: Option<Vec<String>>,
     pub additional_args: Option<Vec<String>>,
 }
@@ -13,6 +15,7 @@ impl Default for ProjectCompiler {
     fn default() -> Self {
         let compile_args: ProjectCompiler = ProjectCompiler {
             files: None,
+            path: None,
             build_args: None,
             additional_args: None,
         };
@@ -26,6 +29,7 @@ impl ProjectCompiler {
         // if files is not None, convert files to PathBuf
         Self {
             files: compile_args.files,
+            path: compile_args.path,
             build_args: compile_args.build_args,
             additional_args: compile_args.additional_args,
         }
@@ -43,8 +47,23 @@ impl ProjectCompiler {
         extend_args(&mut args, self.build_args.as_ref());
         extend_args(&mut args, self.additional_args.as_ref());
 
+        
+
+        if self.path.is_some() {
+            let path_arg: String = self.path.as_ref().unwrap().to_string();
+            if !PathBuf::from(&path_arg).is_dir() {
+               return Err("Path is not a directory".into());
+            }
+            // get absolute path
+            let current_path = PathBuf::from(&path_arg).canonicalize()?;
+            std::env::set_current_dir(&current_path)?;
+            println!("PATH CHANGED TO: {}", current_path.to_str().unwrap());
+
+        }
+        
         // if files is not None, compile the files
         if self.files.is_none() {
+            
             // compile all contracts in the contracts directory add compiler args and build args
             output = Command::new("cargo")
                 .args(&args)

@@ -43,12 +43,14 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Commands::Compile {
                     interactive,
+                    path,
                     files_to_compile,
                     build_args,
                     additional_args,
                 } => {
                     // create a new ProjectCompiler with the provided args
                     let compile_args: ProjectCompiler = ProjectCompiler {
+                        path: path.clone(),
                         files: files_to_compile,
                         build_args: build_args,
                         additional_args: additional_args,
@@ -231,7 +233,6 @@ fn parse_deploy_args(
         let mut current_args: Vec<Vec<String>> = Vec::new();
         let mut sub_vector: Vec<String> = Vec::new();
         let mut current_args_index: usize = 0;
-
         for entry in deploy_args.unwrap().iter() {
             // iterate through args and if an arg is a contract name, split there and take the next set of args to the next contract name
             if contracts_to_deploy.contains(entry) {
@@ -249,6 +250,7 @@ fn parse_deploy_args(
                 return Err("Contract name not found".into());
             }
         }
+
         if sub_vector.len() > 0 {
             current_args.push(sub_vector.clone());
         }
@@ -258,5 +260,28 @@ fn parse_deploy_args(
         return Ok(contract_map);
     } else {
         return Err("No deploy args provided".into());
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_deploy_args() {
+        let deploy_args: Option<Vec<String>> = Some(vec!["contract1".to_string(),
+        "address1".to_string(),
+        "address1b".to_string(),
+        "contract2".to_string(),
+        "address2".to_string(),
+        "address2b".to_string()]);
+        let contracts_to_deploy: Vec<String> = vec!["contract1".to_string(), "contract2".to_string()];
+        let result: Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> = parse_deploy_args(deploy_args, contracts_to_deploy);
+        assert!(result.is_ok());
+        let contract_map: HashMap<String, Vec<String>> = result.unwrap();
+        assert_eq!(contract_map.len(), 2);
+        assert_eq!(contract_map.get("contract1").unwrap().len(), 2);
+        assert_eq!(contract_map.get("contract2").unwrap().len(), 2);
     }
 }
