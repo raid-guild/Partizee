@@ -16,8 +16,9 @@ clap = { workspace = true }
 cliclack = { workspace = true }
 tera = { workspace = true }
 tokio = { workspace = true }
-# tokio-test = { workspace = true }
+tokio-test = { workspace = true, optional = true }
 pbc_contract_common = { workspace = true }
+pbc_abi = { workspace = true }
 pbc_contract_codegen = { workspace = true }
 pbc_traits = { workspace = true }
 pbc_lib = { workspace = true }
@@ -27,11 +28,26 @@ create_type_spec_derive = { workspace = true }
 pbc_zk = { workspace = true }
 serde_json = { workspace = true }
 getrandom = { workspace = true }
-walkdir = "2.5.0"
+dirs = { workspace = true }
+walkdir = { workspace = true }
+reqwest = "0.11"
+base64 = "0.22.1"
+serde = "1.0.219"
+bip39 = "2.1.0"
+bip32 = "0.5.3"
+rand = "0.8.5"
+pbkdf2 = "0.12.2"
+unicode-normalization = "0.1.22"
+hmac-sha512 = "1.1.7"
+hdpath = "0.5.0"
+k256 = { version = "0.13", features = ["arithmetic"] }
+sha2 = "0.10"
+hex = "0.4"
 
 [target.wasm32-unknown-unknown]
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
 
 [features]
 abi = ["pbc_contract_common/abi", "pbc_contract_codegen/abi", "pbc_traits/abi", "create_type_spec_derive/abi", "pbc_lib/abi"]
+async-test = ["tokio-test"]
 
