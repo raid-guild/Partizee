@@ -48,7 +48,7 @@ pub fn load_account_from_pk_file(
     network: &str,
 ) -> Result<Account, Box<dyn std::error::Error>> {
     if !path.is_file() {
-        panic!("load_account_from_pk_file: Failed to read file: {}", path.display())  
+        return Err(format!("load_account_from_pk_file: Failed to read file: {}", path.display()).into());
     }
     let private_key: String = std::fs::read_to_string(path).unwrap_or_else(|e| {
         panic!("load_account_from_pk_file: Failed to read file: {}", e)  
@@ -158,7 +158,7 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
         address = address.chars().filter(|c| c.is_alphanumeric()).collect();
         // validate address length
         if address.len() != 42 {
-            return print_output("get_address_from_pk", &output.unwrap().clone());
+            return print_output("get_address_from_pk", output.as_ref().unwrap()); 
         }
         Ok(address)
     } else {

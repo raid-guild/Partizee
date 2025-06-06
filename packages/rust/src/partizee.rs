@@ -29,12 +29,12 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     let new_project: NewProject;
                     if interactive {
                         let menu_args: ProjectConfig = new_project_menu(name, output_dir)?;
-                        new_project = NewProject::new(menu_args);
+                        new_project = NewProject::new(menu_args)?;
                     } else {
                         new_project = NewProject::new(ProjectConfig {
                             name: name.expect("must provide name for new project"),
                             output_dir: output_dir,
-                        });
+                        })?;
                     }
                     // Pass zero_knowledge as needed
                     new_project.create_new_project()?;
@@ -97,7 +97,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     if contracts_to_deploy.is_some() {
                         deployer_args_hashmap = Some(parse_deploy_args(
                             deploy_args,
-                            contracts_to_deploy.clone().unwrap(),
+                            contracts_to_deploy.as_ref().unwrap_or(&Vec::new()).clone(),  
                         )?);
                     } else {
                         deployer_args_hashmap = None;
@@ -141,7 +141,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     AccountSubcommands::AccountCreate { shared_args } => {
                         if shared_args.interactive {
                             let account_args: Account =
-                                create_new_account_menu().expect("Failed to create new account");
+                            create_new_account_menu().map_err(|e| format!("Failed to create new account: {}", e))?;  
                             pbc_create_new_account(&account_args.network)?;
                         }
                     }
@@ -160,18 +160,21 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                             let account_output: String = account.show_account()?;
                             println!("{}", account_output);
                         } else {
-                            if shared_args.network.is_some() && shared_args.address.is_some() {
-                                let account: Account = Account::default();
-                                let account_output: String = account.show_account()?;
-                                println!("{}", account_output);
-                            } else if shared_args.network.is_some() && shared_args.address.is_none()
-                            {
-                                let account: Account = Account::default();
-                                let account_output: String = account.show_account()?;
-                                println!("{}", account_output);
-                            } else {
-                                println!("No account found");
-                            }
+                              // Create account from provided args or use default  
+                              let account_config = AccountConfig {  
+                                  network: shared_args.network,  
+                                  address: shared_args.address,  
+                                  private_key: None,  
+                                  path: None,  
+                              };  
+                              
+                              match Account::new(account_config) {  
+                                  Ok(account) => {  
+                                      let account_output = account.show_account()?;  
+                                      println!("{}", account_output);  
+                                  }  
+                                  Err(_) => println!("No account found"),  
+                              }  
                         }
                     }
                     AccountSubcommands::AccountMintGas { shared_args } => {
