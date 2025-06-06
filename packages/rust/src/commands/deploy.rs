@@ -4,13 +4,13 @@
 
 use crate::commands::account::Account;
 use crate::utils::constants::DEFAULT_NETWORK;
-use crate::utils::utils::{
-    find_paths_with_extension, find_paths_with_name, load_account_from_pk_file, print_error,
-    print_output,
+use crate::utils::fs_nav::{get_all_contract_names, find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root};
+use crate::utils::utils::{load_account_from_pk_file, print_error, print_output};
+use pbc_abi::abi_model::{
+    AbiSerialize, ContractAbi, FnAbi, FunctionKind, NamedEntityAbi, NamedTypeSpec, TypeSpec,
 };
-use pbc_abi::abi_model::{ContractAbi, FnAbi};
-use std::collections::HashMap;
-use std::ffi::OsStr;
+use pbc_abi::create_type_spec::{NamedTypeLookup, NamedTypeSpecs};
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::{Command, Output};
 #[derive(Debug, Clone)]
@@ -21,8 +21,16 @@ pub struct DeployConfigs {
     pub path_to_account: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Deployer {
+    pub network: String,
+    pub contract_names: Vec<String>,
+    pub deployer_args: HashMap<String, Vec<String>>,
+    pub path_to_account: PathBuf,
+}
+#[derive(Debug, Clone)]
 pub struct DeploymentWithAccount {
-    deploy_configs: DeployConfigs,
+    deploy_configs: Deployer,
     account: Account,
 }
 
@@ -37,74 +45,84 @@ impl Default for DeployConfigs {
     }
 }
 
+// default deployment with account, selects either the first account found or creates a new account if none are found
 impl Default for DeploymentWithAccount {
     fn default() -> Self {
         let account: Account = Account::default();
         let mut deploy_project: DeployConfigs = DeployConfigs::default();
         deploy_project.path_to_account = Some(account.path.clone());
+        let deployer: Deployer = Deployer {
+            network: deploy_project.network.clone().unwrap_or(DEFAULT_NETWORK.to_string()),
+            contract_names: get_all_contract_names().expect("No contracts found"),
+            deployer_args: deploy_project.deployer_args.clone().unwrap_or(HashMap::new()),
+            path_to_account: deploy_project.path_to_account.clone().expect("No account found"),
+        };
         Self {
-            deploy_configs: deploy_project,
+            deploy_configs: deployer,
             account: account,
         }
     }
 }
 
 impl DeploymentWithAccount {
-    pub fn new(deploy_config: DeployConfigs, account_path: Option<PathBuf>) -> Self {
-        let deployment_account: Account = if account_path.is_some() {
-            load_account_from_pk_file(
-                account_path.as_ref().unwrap(),
-                &deploy_config
-                    .network
-                    .as_ref()
-                    .unwrap_or(&DEFAULT_NETWORK.to_string()),
-            )
-            .unwrap()
-        } else {
-            Account::default()
-        };
-
+    pub fn new(deploy_config: Deployer) -> Self {
+        let deployment_account: Account = load_account_from_pk_file(
+            &deploy_config.path_to_account,
+            &deploy_config.network
+        ).expect("Failed to load account");
         Self {
-            deploy_configs: deploy_config.clone(),
+            deploy_configs: deploy_config,
             account: deployment_account,
         }
     }
 
     /// deploy all contracts in the contracts directory
-    /// if no contract names are provided, deploy all contracts in the contracts directory
-    /// if contract names are provided, deploy only the contracts with the given names
-    /// if deployer args are provided, deploy the contracts with the given names and args
-    /// if no deployer args are provided, deploy the contracts with the default arguments
-    /// if no network is provided, use the default network
-    /// if no account is provided, use the default account
-    pub fn deploy_contracts(&mut self) /*-> Result<Vec<Vec<u8>>, Box<dyn std::error::Error>>*/
-    {
-        println!("Deploying contracts...");
-        let network: String = self.deploy_configs.network.clone().unwrap_or(DEFAULT_NETWORK.to_string());
-        let project_root: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        println!("Network: {:?}", network);
-        let names: Vec<String> = self
-            .deploy_configs
-            .contract_names
-            .clone()
-            .unwrap_or(Vec::new());
-        let mut path_to_contracts: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path_to_contracts.push("target/wasm32-unknown-unknown/release");
+    pub fn deploy_contracts(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let project_root: PathBuf = find_workspace_root().unwrap();
 
-        let mut contract_pbc_paths: Vec<PathBuf> = Vec::new();
-        let mut contract_abi_paths: Vec<PathBuf> = Vec::new();
-        let mut contract_wasm_paths: Vec<PathBuf> = Vec::new();
-        let mut contract_zkwa_paths: Vec<PathBuf> = Vec::new();
+        let mut names: Vec<String> = self.deploy_configs.contract_names.clone();
+
+        let path_to_contracts: PathBuf =
+            find_dir(&project_root, "wasm32-unknown-unknown/release").unwrap();
+
+        let mut contract_pbc_set: HashSet<PathBuf> = HashSet::new();
+        let mut contract_abi_set: HashSet<PathBuf> = HashSet::new();
+        let mut contract_wasm_set: HashSet<PathBuf> = HashSet::new();
+        let mut contract_zkwa_set: HashSet<PathBuf> = HashSet::new();
+        // filter repeat names
+        let names_set: HashSet<String> = names.iter().map(|name| name.clone()).collect();
+        names = names_set.into_iter().collect();
+
         if names.is_empty() {
-            contract_pbc_paths = find_paths_with_extension(&path_to_contracts, "pbc");
-            // contract_abi_paths = find_paths_with_extension(&path_to_contracts, "abi");
-            // contract_wasm_paths = find_paths_with_extension(&path_to_contracts, "wasm");
-            // contract_zkwa_paths = find_paths_with_extension(&path_to_contracts, "zkwa");
+            contract_pbc_set = find_files_with_extension(&path_to_contracts, "pbc")
+                .into_iter()
+                .collect();
+            // trim pbc paths to just the name of the contract
+            names = contract_pbc_set
+                .iter()
+                .map(|path| {
+                    path.file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string()
+                        .replace(".pbc", "")
+                })
+                .collect();
+            contract_abi_set = find_files_with_extension(&path_to_contracts, "abi")
+                .into_iter()
+                .collect();
+            contract_wasm_set = find_files_with_extension(&path_to_contracts, "wasm")
+                .into_iter()
+                .collect();
+            contract_zkwa_set = find_files_with_extension(&path_to_contracts, "zkwa")
+                .into_iter()
+                .collect();
         } else {
-            for name in names {
-                let all_contract_paths = find_paths_with_name(&path_to_contracts, &name);
+            for name in &names {
+                let all_contract_paths = find_paths_with_name(&path_to_contracts, name);
                 // filter for only pbc files
-                contract_pbc_paths.push(
+                contract_pbc_set.insert(
                     all_contract_paths
                         .iter()
                         .filter(|path| path.extension().unwrap_or_default() == "pbc")
@@ -112,7 +130,7 @@ impl DeploymentWithAccount {
                         .collect(),
                 );
                 // filter for only abi files
-                contract_abi_paths.push(
+                contract_abi_set.insert(
                     all_contract_paths
                         .iter()
                         .filter(|path| path.extension().unwrap_or_default() == "abi")
@@ -120,7 +138,7 @@ impl DeploymentWithAccount {
                         .collect(),
                 );
                 // filter for only wasm files
-                contract_wasm_paths.push(
+                contract_wasm_set.insert(
                     all_contract_paths
                         .iter()
                         .filter(|path| path.extension().unwrap_or_default() == "wasm")
@@ -128,7 +146,7 @@ impl DeploymentWithAccount {
                         .collect(),
                 );
                 // filter for only zkwa files
-                contract_zkwa_paths.push(
+                contract_zkwa_set.insert(
                     all_contract_paths
                         .iter()
                         .filter(|path| path.extension().unwrap_or_default() == "zkwa")
@@ -137,66 +155,61 @@ impl DeploymentWithAccount {
                 );
             }
         }
-        let contract_args: HashMap<String, Vec<String>> = self
-            .deploy_configs
-            .deployer_args
-            .clone()
-            .unwrap_or(HashMap::new());
-        println!("Contract args: {:?}", contract_args);
-        // hashmap key is contract name
-        // hashmap value is vector of arguments
-        // if self.deploy_configs.deployer_args.is_some() {
-        //     for (contract_name, args) in self.deploy_configs.deployer_args.as_ref().unwrap().iter() {
-        //         // search contracts folder for folder with name contract_name
-        //         let path_to_contract: PathBuf = project_root.push(PathBuf::from("rust/contracts/").push(PathBuf::from(contract_name))).push("lib.rs");
 
-        //         let contract_abi = ContractAbi::from_file(path_to_contract).unwrap();
-        //         let init_fn: Option<&FnAbi> = contract_abi.functions.iter().find(|f| f.fn_kind == FunctionKind::Init);
-        //         // check if contract has initialize function
-        //         if init_fn.is_some() {
-        //            // check that provided args match the initialize function inputs
-        //            println!("Contract: {:?}, Args: {:?}", contract_name, args);
-        //         }
-        //         // check if contract has initialize function with inputs
-        //         if contract_abi.functions.iter().find(|fn_abi| fn_abi.name == "initialize").unwrap().inputs.is_empty() {
-        //         let init_fn: FnAbi = contract_abi.functions.iter().find(|fn_abi| fn_abi.name == "initialize").unwrap();
-        //         if init_fn.inputs.is_empty() {
-        //             return Err("No inputs provided for contract".into());
-        //             }
-        //         }
-        //     }
-        // }
+        // convert sets to vectors
+        let contract_pbc_paths: Vec<PathBuf> = contract_pbc_set.into_iter().collect();
+        let contract_abi_paths: Vec<PathBuf> = contract_abi_set.into_iter().collect();
+        let contract_wasm_paths: Vec<PathBuf> = contract_wasm_set.into_iter().collect();
+        let contract_zkwa_paths: Vec<PathBuf> = contract_zkwa_set.into_iter().collect();
 
-        // if contract_pbc_paths.is_empty() {
-        //     return Err("No contracts found".into());
-        // }
+        let contract_args_hashmap: HashMap<String, Vec<String>> = self.deploy_configs.deployer_args.clone();
 
-        // let mut results: Vec<Vec<u8>> = Vec::new();
-        // if &network == "testnet" {
-        //     for contract_path in contract_paths {
-        //         // check abi for initialization types
 
-        //         let contract_deploy_args: Vec<String> = self.deploy_configs.deployer_args.clone().unwrap_or(Vec::new());
-        //         results.push(self.deploy_contract(Some(contract_path), None, None, None, contract_deploy_args)?);
-        //     }
-        //     return Ok(results);
-        // } else if &network == "mainnet" {
-        //     for contract_pbc in contract_pbcs {
-        //         let contract_name: &OsStr = contract_pbc.file_name().unwrap();
-        //         let contract_deploy_args: Vec<String> =
-        //             contract_deploy_args(&contract_name.to_str().unwrap())?;
-        //         self.deploy_contract(Some(contract_pbc), None, None, None, contract_deploy_args)?;
-        //     }
-        //     return Ok(results);
-        // } else {
-        //     println!("Invalid network");
-        //     return Err("Invalid network".into());
-        // }
+
+        for (index, name) in names.iter().enumerate() {
+            // get name of current contract
+            let contract_args: Vec<String> =
+                contract_args_hashmap.get(name).cloned().unwrap_or_default();
+
+            let contract_pbc_path: Option<PathBuf> =
+                if contract_pbc_paths.get(index).map_or(true, |p: &PathBuf| !p.exists()) {
+                    None
+                } else {
+                    Some(contract_pbc_paths[index].clone())
+                };
+            let contract_abi_path: Option<PathBuf> = contract_abi_paths.get(index).filter(|p: &&PathBuf| p.exists()).cloned();
+
+            let contract_wasm_path: Option<PathBuf> =
+                if contract_wasm_paths.get(index).map_or(true, |p: &PathBuf| !p.exists()) {
+                    None
+                } else {
+                    Some(contract_wasm_paths[index].clone())
+                };
+            let contract_zkwa_path: Option<PathBuf> =
+                if contract_zkwa_paths.get(index).map_or(true, |p: &PathBuf| !p.exists()) {
+                    None
+                } else {
+                    Some(contract_zkwa_paths[index].clone())
+                };
+            let result = self.deploy_contract(
+                contract_pbc_path,
+                contract_abi_path,
+                contract_wasm_path,
+                contract_zkwa_path,
+                contract_args,
+            );
+            if result.is_err() {
+                println!("Error deploying contract: {:?}", result.err().unwrap());
+            } else {
+                println!("Contract deployed: {:?}", result);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn deploy_contract(
         &mut self,
-        contract_name: String,
         contract_pbc_path: Option<PathBuf>,
         contract_abi_path: Option<PathBuf>,
         contract_wasm_path: Option<PathBuf>,
@@ -205,12 +218,6 @@ impl DeploymentWithAccount {
     ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         // cargo partisia-contract transaction deploy --gas 10000000 --privatekey YourAccountFile.pk your_compiled_contract_file.pbc + contract inputs separated by spaces (strings in quotes)
         let private_key_path: PathBuf = self.account.path.clone();
-        println!(
-            "Command: cargo pbc transaction deploy --gas 10000000 --privatekey {:?} --abi{:?} {:?}",
-            &private_key_path,
-            contract_pbc_path.as_ref().unwrap(),
-            args.join(" ")
-        );
 
         let mut command: Command = Command::new("cargo");
         command
@@ -239,13 +246,33 @@ impl DeploymentWithAccount {
                 command.arg(abi.to_str().unwrap());
             }
             (None, Some(abi), None, Some(zkwa)) => {
-                // command.arg(zkwa);
-                // If you need to add --abi here, do so
-                // command.arg("--abi");
-                // command.arg(abi);
+                command.arg(zkwa);
+                command.arg("--abi");
+                command.arg(abi.to_str().unwrap());
             }
             (Some(pbc), None, None, None) => {
                 command.arg(pbc.to_str().unwrap());
+            }
+            (Some(pbc), Some(abi), Some(wasm), None) => {
+                command.arg(pbc.to_str().unwrap());
+            }
+
+            (Some(pbc), None, Some(wasm), None) => {
+                command.arg(pbc.to_str().unwrap());
+            }
+            (Some(pbc), None, Some(wasm), Some(zkwa)) => {
+                command.arg(pbc.to_str().unwrap());
+            }
+            (Some(pbc), None, None, Some(zkwa)) => {
+                command.arg(pbc.to_str().unwrap());
+            }
+            (Some(pbc), Some(abi), Some(wasm), Some(zkwa)) => {
+                command.arg(pbc.to_str().unwrap());
+            }
+            (None, Some(abi), Some(wasm), Some(zkwa)) => {
+                command.arg(zkwa.to_str().unwrap());
+                command.arg("--abi");
+                command.arg(abi.to_str().unwrap());
             }
             _ => {
                 return Err("Need either pbc or wasm + abi or zkwa + abi paths provided".into());
@@ -265,29 +292,25 @@ impl DeploymentWithAccount {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     #[derive(Debug, Clone)]
-//     struct DeployProjectTest {
-//         account_name: Option<String>,
-//     }
-//     #[test]
-//     fn test_deploy_contracts() {
-//         // create new project
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[derive(Debug, Clone)]
+    struct DeployProjectTest {
+        account_name: Option<String>,
+    }
+    #[test]
+    fn test_create_default_deployment_with_account() {
+        // create new project
 
-//         let deploy_config: DeployProject = DeployProject {
-//             account_name: Some("test".to_string()),
-//             project_root: find_workspace_root(),
-//             contract_path: None,
-//             network: None,
-//             deployer_args: None,
-//             account: None,
-//         };
-//         let mut deploy_project: DeployProject = DeployProject::new(deploy_config);
-//         let result = deploy_project
-//             .deploy_contracts(None)
-//             .expect("Failed to deploy contracts");
-//         println!("{:?}", result);
-//     }
-// }
+        let deployment_with_account: DeploymentWithAccount = DeploymentWithAccount::default();
+        assert!(deployment_with_account.deploy_configs.path_to_account.is_file());
+        assert_eq!(deployment_with_account.account.path.is_file().clone(), true);
+        assert_eq!(deployment_with_account.account.path.extension().unwrap(), "pk");
+        assert_eq!(deployment_with_account.account.path.clone().file_name().unwrap().to_str().unwrap(), format!("{}.pk", deployment_with_account.account.address));
+        assert_eq!(deployment_with_account.account.address.len(), 42);
+        assert_eq!(deployment_with_account.account.private_key.len(), 64);
+        assert_eq!(deployment_with_account.account.network, "testnet");
+        
+    }
+}

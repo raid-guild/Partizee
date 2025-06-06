@@ -1702,6 +1702,7 @@ dependencies = [
  "pbc_traits",
  "pbc_zk",
  "pbkdf2",
+ "rand",
  "read_write_rpc_derive",
  "read_write_state_derive",
  "reqwest 0.11.27",

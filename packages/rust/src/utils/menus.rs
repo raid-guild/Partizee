@@ -1,16 +1,19 @@
-use crate::commands::account::Account;
+use crate::commands::account::{Account, AccountConfig};
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
-use crate::utils::utils::{find_workspace_root, get_pk_files};
+use crate::utils::fs_nav::get_pk_files;
 use cliclack::{confirm, input, intro, outro, select};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub fn new_project_menu() -> Result<ProjectConfig, Box<dyn std::error::Error>> {
+pub fn new_project_menu(name: Option<String>, output_dir: Option<String>) -> Result<ProjectConfig, Box<dyn std::error::Error>> {
     intro("Partizee - Create a new Partisia Blockchain project")?;
 
-    let name: String = input("What is your project name?")
+    let name: String = if name.is_some() {
+        name.unwrap()
+    } else {
+        input("What is your project name?")
         .placeholder("my-dapp")
         .validate(|input: &String| {
             if input.is_empty() {
@@ -18,26 +21,32 @@ pub fn new_project_menu() -> Result<ProjectConfig, Box<dyn std::error::Error>> {
             } else {
                 Ok(())
             }
-        })
-        .interact()?;
+            })
+            .interact()?
+    };
 
+    let output_directory: Option<String>;
+    if output_dir.is_some() {
+        output_directory = output_dir;
+    } else {
     let use_custom_dir = confirm("Would you like to specify a custom output directory? (if No: we'll create the project in the current directory with the name already specified)")
         .initial_value(false)
         .interact()?;
 
-    let output_dir = if use_custom_dir {
+        output_directory = if use_custom_dir {
         Some(
             input("Enter output directory path")
                 .placeholder(&name)
                 .interact()?,
-        )
+            )
     } else {
         None
+        };
     };
-
     outro("Project configuration complete!")?;
 
-    Ok(ProjectConfig { name, output_dir })
+
+    Ok(ProjectConfig { name: name, output_dir: output_directory })
 }
 
 pub fn compile_menu(
@@ -207,7 +216,6 @@ pub fn compile_menu(
     };
 
     Ok(ProjectCompiler {
-        project_root: None,
         files,
         build_args,
         additional_args,
@@ -373,23 +381,24 @@ pub fn custom_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
         return Err("Private key is required if address is provided".into());
     }
     if account_address_input.is_some() && account_private_key_input.is_some() {
+        let account_config: AccountConfig = AccountConfig {
+            network: account_network_input,
+            address: account_address_input,
+            private_key: account_private_key_input,
+            path: pathbuf_to_pk,
+        };
         // check if private key is valid for the address
-        let account: Account = Account::new(
-            pathbuf_to_pk.as_ref(),
-            account_network_input.as_deref(),
-            account_address_input.as_deref(),
-            account_private_key_input.as_deref(),
-        )
-        .unwrap();
-        if account.address.is_none() {
-            return Err("Private key is not valid for the entered address".into());
-        }
+        let account: Account = Account::new(account_config).unwrap();
+        return Ok(account);
     }
+    let account_config: AccountConfig = AccountConfig {
+        network: account_network_input,
+        address: account_address_input,
+        private_key: account_private_key_input,
+        path: pathbuf_to_pk,
+    };
     let account: Account = Account::new(
-        pathbuf_to_pk.as_ref(),
-        account_network_input.as_deref(),
-        account_address_input.as_deref(),
-        account_private_key_input.as_deref(),
+        account_config
     )
     .unwrap();
     Ok(account)

@@ -50,6 +50,12 @@ pub struct CliArgs {
 pub enum Commands {
     #[clap(about = "create a new dapp")]
     New {
+        #[clap(
+            help = "use interactive menu to create a new dapp",
+            short = 'i',
+            long = "interactive"
+        )]
+        interactive: bool,
         #[clap(help = "dapp name", value_parser)]
         name: Option<String>,
         #[clap(help = "output directory", short = 'o', long = "output-dir")]
@@ -65,6 +71,12 @@ pub enum Commands {
     #[clap(about = "compile your dapp")]
     Compile {
         #[clap(
+            help = "use interactive menu to compile",
+            short = 'i',
+            long = "interactive"
+        )]
+        interactive: bool,
+        #[clap(
             long = "files",
             short = 'f',
             help = "Specify specific files to compile",
@@ -72,7 +84,6 @@ pub enum Commands {
             allow_hyphen_values = true
         )]
         files_to_compile: Option<String>,
-
         #[clap(
             long = "build-args",
             short = 'b',
@@ -119,10 +130,8 @@ pub enum Commands {
             long = "deploy-args",
             short = 'd',
             num_args = 1..,
-            value_parser = clap::builder::NonEmptyStringValueParser::new(),
-            action = clap::ArgAction::Append
         )]
-        deploy_args: Option<Vec<Vec<String>>>,
+        deploy_args: Option<Vec<String>>,
         #[clap(help = "path to the account", short = 'a', long = "account")]
         account_path: Option<String>,
     },

@@ -105,7 +105,6 @@ mod tests {
         let client = HttpClient::default();
         let result = client.get_request::<TestData>(TESTNET_RPC_ENDPOINT).await;
         assert!(result.is_ok());
-        println!("RESULT: {:?}", result);
     }
 
     #[tokio::test]
@@ -118,6 +117,6 @@ mod tests {
         let result = client
             .put_request::<TestData, TestData>(TESTNET_RPC_ENDPOINT, &test_data)
             .await;
-        println!("RESULT: {:?}", result);
+        assert!(result.is_ok());
     }
 }

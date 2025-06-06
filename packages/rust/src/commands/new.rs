@@ -1,11 +1,11 @@
 use std::{
-    env, fs,
+    env::current_dir, fs,
     path::{Path, PathBuf},
 };
 use tera::{Context, Tera};
 use walkdir::WalkDir;
 
-use crate::utils::menus::new_project_menu;
+use crate::utils::fs_nav::find_workspace_root;
 use crate::utils::utils::COPIABLE_EXTENSIONS;
 
 #[derive(Debug)]
@@ -23,14 +23,9 @@ pub struct ProjectConfig {
 }
 
 impl NewProject {
-    pub fn new(dapp_name: Option<String>, output_dir: Option<String>) -> Self {
-        // Get project config from CLI or menu
-        let config: ProjectConfig = dapp_name
-            .map(|name| ProjectConfig { name, output_dir })
-            .unwrap_or_else(|| new_project_menu().unwrap());
-
+    pub fn new(config: ProjectConfig) -> Self {
         // install project in current directory
-        let project_root = env::current_dir().unwrap();
+        let project_root = find_workspace_root().unwrap();
 
         // if output_dir is provided, use it, otherwise use the project name
         let output_dir = config
@@ -42,7 +37,7 @@ impl NewProject {
             dapp_name: config.name,
             output_dir,
             project_root,
-            executable_root: env::current_dir().unwrap(),
+            executable_root: env!("CARGO_MANIFEST_DIR").into(),
         }
     }
 
