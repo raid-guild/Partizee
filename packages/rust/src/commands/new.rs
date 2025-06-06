@@ -1,12 +1,12 @@
+use crate::utils::fs_nav::find_workspace_root;
+use crate::utils::utils::COPIABLE_EXTENSIONS;
+use std::error::Error;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 use tera::{Context, Tera};
 use walkdir::WalkDir;
-use std::error::Error;
-use crate::utils::fs_nav::find_workspace_root;
-use crate::utils::utils::COPIABLE_EXTENSIONS;
 
 #[derive(Debug)]
 pub struct NewProject {

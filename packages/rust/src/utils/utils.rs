@@ -48,20 +48,31 @@ pub fn load_account_from_pk_file(
     network: &str,
 ) -> Result<Account, Box<dyn std::error::Error>> {
     if !path.is_file() {
-        return Err(format!("load_account_from_pk_file: Failed to read file: {}", path.display()).into());
+        return Err(format!(
+            "load_account_from_pk_file: Failed to read file: {}",
+            path.display()
+        )
+        .into());
     }
-    let private_key: String = std::fs::read_to_string(path).unwrap_or_else(|e| {
-        panic!("load_account_from_pk_file: Failed to read file: {}", e)  
-    });
+    let private_key: String = std::fs::read_to_string(path)
+        .map_err(|e| format!("load_account_from_pk_file: Failed to read file: {}", e))?;
     if private_key.is_empty() {
-        panic!("load_account_from_pk_file: Private key is empty")  
+        return Err("load_account_from_pk_file: Private key is empty".into());
     }
     assert_private_key_length(&private_key)
         .expect("load_account_from_pk_file: Invalid private key");
     // get address from file name - remove extension
 
-    let file_name: String = path.file_name().unwrap().to_str().unwrap().to_string();
-    let mut address: String = file_name.split('.').nth(0).unwrap().to_string();
+    let file_name = path
+        .file_name()
+        .ok_or("Invalid file path")?
+        .to_str()
+        .ok_or("Invalid UTF-8 in filename")?;
+    let mut address = file_name
+        .split('.')
+        .next()
+        .ok_or("Empty filename")?
+        .to_string();
 
     let valid_address = address_is_valid(&address, &private_key).unwrap_or(false);
 
@@ -103,16 +114,18 @@ pub fn assert_private_key_length(private_key: &str) -> Result<(), Box<dyn std::e
 pub fn get_account_address_from_path(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
     if path.is_file() {
         // get account address from path name account is the last word in path - remove extension path could be absolute or relative
-        let file_name = path.file_name()  
-                   .ok_or("Invalid file path")?  
-                   .to_str()  
-                   .ok_or("Invalid UTF-8 in filename")?;  
-               
-               // Remove extension to get address  
-               let account_address = file_name.split('.')  
-                   .next()  
-                   .ok_or("Empty filename")?  
-                   .to_string();  
+        let file_name = path
+            .file_name()
+            .ok_or("Invalid file path")?
+            .to_str()
+            .ok_or("Invalid UTF-8 in filename")?;
+
+        // Remove extension to get address
+        let account_address = file_name
+            .split('.')
+            .next()
+            .ok_or("Empty filename")?
+            .to_string();
 
         return Ok(account_address);
     } else {
@@ -143,11 +156,16 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
         .arg("pbc")
         .arg("account")
         .arg("address")
-        .arg(&temp_file.as_path().to_str().unwrap())
+        .arg(
+            temp_file
+                .as_path()
+                .to_str()
+                .ok_or("Invalid UTF-8 in path")?,
+        )
         .output();
 
     // remove temp file
-    let _ = fs::remove_file(&temp_file);  
+    let _ = fs::remove_file(&temp_file);
 
     if output.is_ok() {
         // get address from command output
@@ -158,7 +176,7 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
         address = address.chars().filter(|c| c.is_alphanumeric()).collect();
         // validate address length
         if address.len() != 42 {
-            return print_output("get_address_from_pk", output.as_ref().unwrap()); 
+            return Err(format!("Invalid address length: {} (expected 42)", address.len()).into());
         }
         Ok(address)
     } else {
@@ -203,20 +221,21 @@ pub fn create_pk_file(private_key: &str) -> Result<PathBuf, Box<dyn std::error::
     let address: String = get_address_from_pk(private_key)
         .expect("create_pk_file: Failed to get address from private key");
     let pk_file: PathBuf = root_path.join(format!("{}.pk", address));
-    fs::write(&pk_file, private_key)  
-        .map_err(|e| format!("Failed to write private key file: {}", e))?;  
+    fs::write(&pk_file, private_key)
+        .map_err(|e| format!("Failed to write private key file: {}", e))?;
     Ok(pk_file)
 }
 #[allow(dead_code)]
 pub fn trim_public_key(std_output: &Output) -> String {
     let line = String::from_utf8_lossy(&std_output.stdout).to_string();
-    let public_key = line.split(':')  
-           .nth(1)  
-           .map(|s| s.trim().to_string())  
-           .unwrap_or_else(|| {  
-               eprintln!("Warning: Unable to parse public key from output: {}", line);  
-               String::new()  
-           });  
+    let public_key = line
+        .split(':')
+        .nth(1)
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| {
+            eprintln!("Warning: Unable to parse public key from output: {}", line);
+            String::new()
+        });
     public_key
 }
 
