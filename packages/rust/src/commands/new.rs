@@ -1,5 +1,5 @@
 use std::{
-    env::current_dir, fs,
+    fs,
     path::{Path, PathBuf},
 };
 use tera::{Context, Tera};

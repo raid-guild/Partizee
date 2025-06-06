@@ -3,8 +3,7 @@ use crate::utils::fs_nav::find_workspace_root;
 use serde::de::DeserializeOwned;
 use rand::Rng;
 use std::{
-    collections::HashSet,
-    env, fs,
+    fs,
     path::PathBuf,
     process::{Command, Output},
     sync::LazyLock,

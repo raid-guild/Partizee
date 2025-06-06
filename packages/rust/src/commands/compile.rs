@@ -1,10 +1,4 @@
-use crate::utils::fs_nav::find_workspace_root;
-use crate::utils::menus::compile_menu;
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-    process::{Command, Output},
-};
+use std::process::{Command, Output};
 
 #[derive(Debug)]
 pub struct ProjectCompiler {

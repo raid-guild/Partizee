@@ -9,7 +9,7 @@ const PBKDF2_ROUNDS: u32 = 2048;
 const MNEMONIC_SALT_PREFIX: &str = "mnemonic";
 
 pub struct Bip39;
-
+#[allow(dead_code)]
 impl Bip39 {
     /// Generates a mnemonic phrase from given entropy
     pub fn generate_mnemonic(entropy: &[u8]) -> Result<String, Box<dyn std::error::Error>> {

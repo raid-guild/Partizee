@@ -1,20 +1,21 @@
 use k256::{
     elliptic_curve::sec1::ToEncodedPoint,
-    elliptic_curve::{generic_array::GenericArray, Curve, Field, Scalar},
+    elliptic_curve::{generic_array::GenericArray, Scalar},
     AffinePoint, ProjectivePoint, PublicKey, Secp256k1, SecretKey,
 };
 
-use hmac_sha512::{Hash, HMAC};
+use hmac_sha512::{HMAC};
 use k256::elliptic_curve::group::Group;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
 use k256::elliptic_curve::PrimeField;
-use pbkdf2::pbkdf2_hmac;
-use std::convert::TryFrom;
 
+#[allow(dead_code)]
 pub const HARDENED_INDEXES_START: u32 = 0x80000000;
+#[allow(dead_code)]
 pub const MASTER_KEY_KEY: &[u8] = b"Bitcoin seed";
+#[allow(dead_code)]
 pub const HMAC_SHA_512: &str = "HmacSHA512";
-
+#[allow(dead_code)]
 pub struct ExtendedKey {
     private_key: Option<SecretKey>,
     public_key: PublicKey,
@@ -23,6 +24,9 @@ pub struct ExtendedKey {
     child_number: u32,
 }
 
+pub struct Bip32;
+
+#[allow(dead_code)]
 impl ExtendedKey {
     pub fn private_key(&self) -> Option<&SecretKey> {
         self.private_key.as_ref()
@@ -45,8 +49,8 @@ impl ExtendedKey {
     }
 }
 
-pub struct Bip32;
 
+#[allow(dead_code)]
 impl Bip32 {
     /// Generates a master key from seed
     pub fn generate_master_key(seed: &[u8]) -> Result<ExtendedKey, Box<dyn std::error::Error>> {
@@ -134,7 +138,7 @@ impl Bip32 {
             child_pub
         } else {
             // Public parent: child public = (il * G) + Kpar
-            let il_point = ProjectivePoint::generator() * il_scalar;
+            let il_point = ProjectivePoint::GENERATOR * il_scalar;
 
             let parent_point: AffinePoint =
                 AffinePoint::from_encoded_point(&parent.public_key().to_encoded_point(true))

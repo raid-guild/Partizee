@@ -1,15 +1,8 @@
-// cargo pbc transaction deploy --net="testnet" target/wasm32-unknown-unknown/release/ballot.zkwa
-// '[YES, NO]' "Does this work?" "Let's see..." --abi=target/wasm32-unknown-unknown/release/ballot.abi
-// --pk ./Account-A.pk --gas=10000000
-
 use crate::commands::account::Account;
 use crate::utils::constants::DEFAULT_NETWORK;
 use crate::utils::fs_nav::{get_all_contract_names, find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root};
 use crate::utils::utils::{load_account_from_pk_file, print_error, print_output};
-use pbc_abi::abi_model::{
-    AbiSerialize, ContractAbi, FnAbi, FunctionKind, NamedEntityAbi, NamedTypeSpec, TypeSpec,
-};
-use pbc_abi::create_type_spec::{NamedTypeLookup, NamedTypeSpecs};
+
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -253,23 +246,23 @@ impl DeploymentWithAccount {
             (Some(pbc), None, None, None) => {
                 command.arg(pbc.to_str().unwrap());
             }
-            (Some(pbc), Some(abi), Some(wasm), None) => {
+            (Some(pbc), Some(_abi), Some(_wasm), None) => {
                 command.arg(pbc.to_str().unwrap());
             }
 
-            (Some(pbc), None, Some(wasm), None) => {
+            (Some(pbc), None, Some(_wasm), None) => {
                 command.arg(pbc.to_str().unwrap());
             }
-            (Some(pbc), None, Some(wasm), Some(zkwa)) => {
+            (Some(pbc), None, Some(_wasm), Some(_zkwa)) => {
                 command.arg(pbc.to_str().unwrap());
             }
-            (Some(pbc), None, None, Some(zkwa)) => {
+            (Some(pbc), None, None, Some(_zkwa)) => {
                 command.arg(pbc.to_str().unwrap());
             }
-            (Some(pbc), Some(abi), Some(wasm), Some(zkwa)) => {
+            (Some(pbc), Some(_abi), Some(_wasm), Some(_zkwa)) => {
                 command.arg(pbc.to_str().unwrap());
             }
-            (None, Some(abi), Some(wasm), Some(zkwa)) => {
+            (None, Some(abi), Some(_wasm), Some(zkwa)) => {
                 command.arg(zkwa.to_str().unwrap());
                 command.arg("--abi");
                 command.arg(abi.to_str().unwrap());
@@ -295,14 +288,14 @@ impl DeploymentWithAccount {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[derive(Debug, Clone)]
-    struct DeployProjectTest {
-        account_name: Option<String>,
-    }
+    use crate::utils::fs_nav::get_pk_files;
+
     #[test]
     fn test_create_default_deployment_with_account() {
+        // get pk files
+        let pk_files: Vec<PathBuf> = get_pk_files();
+        if pk_files.len() > 0 {
         // create new project
-
         let deployment_with_account: DeploymentWithAccount = DeploymentWithAccount::default();
         assert!(deployment_with_account.deploy_configs.path_to_account.is_file());
         assert_eq!(deployment_with_account.account.path.is_file().clone(), true);
@@ -310,7 +303,9 @@ mod tests {
         assert_eq!(deployment_with_account.account.path.clone().file_name().unwrap().to_str().unwrap(), format!("{}.pk", deployment_with_account.account.address));
         assert_eq!(deployment_with_account.account.address.len(), 42);
         assert_eq!(deployment_with_account.account.private_key.len(), 64);
-        assert_eq!(deployment_with_account.account.network, "testnet");
-        
+        assert_eq!(deployment_with_account.account.network, "testnet"); 
+        } else {
+            println!("must create a new account");
+        }
     }
 }

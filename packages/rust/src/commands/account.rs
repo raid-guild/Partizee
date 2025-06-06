@@ -29,6 +29,7 @@ pub struct Account {
     pub path: PathBuf,
 }
 
+#[allow(dead_code)]
 impl Default for Account {
     fn default() -> Self {
         let pk_files: Vec<PathBuf> = get_pk_files();
@@ -187,7 +188,6 @@ impl Account {
         Ok(new_account)
     }
 
-    #[allow(dead_code)]
     pub fn load_account_from_path(
         &mut self,
         network: Option<&str>,
@@ -207,7 +207,6 @@ impl Account {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn update_private_key(
         &mut self,
         private_key: &str,
@@ -222,12 +221,10 @@ impl Account {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn update_address(&mut self, address: &str) {
         self.address = address.to_string();
     }
 
-    #[allow(dead_code)]
     pub fn update_network(&mut self, network: &str) {
         self.network = network.to_string();
     }
@@ -251,12 +248,10 @@ impl Account {
         }
     }
 
-    #[allow(dead_code)]
     pub fn private_key(&self) -> String {
         self.private_key.clone()
     }
 
-    #[allow(dead_code)]
     pub fn address(&self) -> String {
         self.address.clone()
     }

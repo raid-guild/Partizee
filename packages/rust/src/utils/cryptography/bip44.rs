@@ -18,7 +18,7 @@ pub const PURPOSE: u32 = 44 | HARDENED_INDEXES_START;
 ///
 /// # Returns
 /// * `XPrv` - The derived extended private key
-
+#[allow(dead_code)]
 pub fn derive_bip44_key(
     master_key: ExtendedKey,
     coin_type: u32,
@@ -46,9 +46,9 @@ pub fn derive_bip44_key(
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
-    use bip39::Mnemonic;
 
     #[test]
     fn test_bip44_derivation() {
