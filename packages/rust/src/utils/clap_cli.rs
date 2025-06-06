@@ -50,6 +50,12 @@ pub struct CliArgs {
 pub enum Commands {
     #[clap(about = "create a new dapp")]
     New {
+        #[clap(
+            help = "use interactive menu to create a new dapp",
+            short = 'i',
+            long = "interactive"
+        )]
+        interactive: bool,
         #[clap(help = "dapp name", value_parser)]
         name: Option<String>,
         #[clap(help = "output directory", short = 'o', long = "output-dir")]
@@ -65,12 +71,19 @@ pub enum Commands {
     #[clap(about = "compile your dapp")]
     Compile {
         #[clap(
-            long = "file",
-            short = 'f',
-            help = "Specify a specific file to compile"
+            help = "use interactive menu to compile",
+            short = 'i',
+            long = "interactive"
         )]
-        file: Option<String>,
-
+        interactive: bool,
+        #[clap(
+            long = "files",
+            short = 'f',
+            help = "Specify specific files to compile",
+            num_args = 1..,
+            allow_hyphen_values = true
+        )]
+        files_to_compile: Option<String>,
         #[clap(
             long = "build-args",
             short = 'b',
@@ -79,32 +92,92 @@ pub enum Commands {
             num_args = 1..,
             allow_hyphen_values = true
             )]
-            build_args: Vec<String>,
+        build_args: Option<Vec<String>>,
 
         #[clap(
             long = "additional-args",
-            short = 'c',
+            short = 'a',
             help = "Additional arguments that will be passed along to compile cli command",
-            num_args = 0..,
+            num_args = 1..,
             allow_hyphen_values = true
             )]
-        additional_args: Vec<String>,
+        additional_args: Option<Vec<String>>,
     },
 
     #[clap(about = "deploy your dapp")]
     Deploy {
         #[clap(
-            help = "select mainnet or testnet, if no thing is specified, it defaults to testnet",
-            short = 'n',
-            long = "net"
+            help = "use interactive menu to deploy",
+            short = 'i',
+            long = "interactive"
         )]
-        net: Option<String>,
+        interactive: bool,
         #[clap(
-          help = "additional deployer arguments to pass to deploy cli command",
-          short = 'd',
-          long = "deployer-args",
-          num_args = 1..,
-          allow_hyphen_values = true)]
-        deployer_args: Vec<String>,
+            help = "select mainnet or testnet, if no thing is specified, it defaults to testnet",
+            short = 'c',
+            long = "chain"
+        )]
+        custom_net: Option<String>,
+        #[clap(
+            help = "enter the names of the contracts to deploy",
+            short = 'n',
+            long = "names",
+            num_args = 1..,
+        )]
+        contract_names: Option<Vec<String>>,
+        #[clap(
+            help = "contract name followed by its arguments, e.g. --deploy-args MyContract arg1 arg2",
+            long = "deploy-args",
+            short = 'd',
+            num_args = 1..,
+        )]
+        deploy_args: Option<Vec<String>>,
+        #[clap(help = "path to the account", short = 'a', long = "account")]
+        account_path: Option<String>,
+    },
+
+    #[clap(about = "create a new account")]
+    Account {
+        #[clap(subcommand)]
+        commands: AccountSubcommands,
+    },
+}
+
+#[derive(Args, Debug)]
+pub struct AccountSharedArgs {
+    #[clap(
+        help = "use interactive menu to create account",
+        short = 'i',
+        long = "interactive"
+    )]
+    pub(crate) interactive: bool,
+    #[clap(help = "name of the account", short = 'n', long = "name")]
+    pub(crate) name: Option<String>,
+    #[clap(help = "network account will be used on", short = 'n', long = "network")]
+    pub(crate) network: Option<String>,
+    #[clap(help = "path to pk file", short = 'p', long = "path")]
+    pub(crate) path: Option<String>,
+    #[clap(help = "account address", short = 'a', long = "address")]
+    pub(crate) address: Option<String>,
+    #[clap(help = "account private key", short = 'k', long = "private-key")]
+    pub(crate) private_key: Option<String>,
+}
+
+#[derive(Subcommand)]
+pub enum AccountSubcommands {
+    #[clap(about = "create a new account", name = "create")]
+    AccountCreate {
+        #[clap(flatten)]
+        shared_args: AccountSharedArgs,
+    },
+    #[clap(about = "show account", name = "show")]
+    AccountShow {
+        #[clap(flatten)]
+        shared_args: AccountSharedArgs,
+    },
+    #[clap(about = "mint gas for account", name = "mint-gas")]
+    AccountMintGas {
+        #[clap(flatten)]
+        shared_args: AccountSharedArgs,
     },
 }
