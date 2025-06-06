@@ -1,15 +1,17 @@
-use crate::utils::constants::TESTNET_RPC_ENDPOINT;
+
 use reqwest::{
     header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE},
     Client,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
+#[allow(dead_code)]
 pub enum RequestType {
     GET,
     PUT,
 }
 
+#[allow(dead_code, unused_variables)]
 pub struct HttpClient {
     client: Client,
     get_headers: HeaderMap,
@@ -39,6 +41,7 @@ impl Default for HttpClient {
     }
 }
 
+#[allow(dead_code)]
 impl HttpClient {
     pub async fn get_request<R>(&self, url: &str) -> Result<Option<R>, reqwest::Error>
     where
@@ -93,7 +96,7 @@ impl HttpClient {
 mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
-
+    use crate::utils::constants::TESTNET_RPC_ENDPOINT;
     #[derive(Debug, Serialize, Deserialize)]
     struct TestData {
         id: i32,
