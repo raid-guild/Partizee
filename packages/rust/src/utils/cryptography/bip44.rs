@@ -1,7 +1,5 @@
 use crate::utils::cryptography::bip32::{Bip32, ExtendedKey, HARDENED_INDEXES_START};
-use crate::utils::cryptography::bip39::Bip39;
-use bip32::{DerivationPath, XPrv};
-use std::str::FromStr;
+
 /// BIP44 constants
 pub const PURPOSE: u32 = 44 | HARDENED_INDEXES_START;
 
@@ -49,6 +47,7 @@ pub fn derive_bip44_key(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::cryptography::bip39::Bip39;
 
     #[test]
     fn test_bip44_derivation() {

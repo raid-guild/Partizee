@@ -1,7 +1,5 @@
 use pbkdf2::pbkdf2_hmac;
 use sha2::{Digest, Sha256, Sha512};
-use std::fs;
-use std::path::Path;
 use unicode_normalization::UnicodeNormalization;
 
 const ENGLISH_WORDLIST: &str = include_str!("wordlist.txt");

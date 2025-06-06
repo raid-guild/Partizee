@@ -1,6 +1,9 @@
 use crate::commands::account::Account;
 use crate::utils::constants::DEFAULT_NETWORK;
-use crate::utils::fs_nav::{get_all_contract_names, find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root};
+use crate::utils::fs_nav::{
+    find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root,
+    get_all_contract_names,
+};
 use crate::utils::utils::{load_account_from_pk_file, print_error, print_output};
 
 use std::collections::{HashMap, HashSet};
@@ -45,10 +48,19 @@ impl Default for DeploymentWithAccount {
         let mut deploy_project: DeployConfigs = DeployConfigs::default();
         deploy_project.path_to_account = Some(account.path.clone());
         let deployer: Deployer = Deployer {
-            network: deploy_project.network.clone().unwrap_or(DEFAULT_NETWORK.to_string()),
+            network: deploy_project
+                .network
+                .clone()
+                .unwrap_or(DEFAULT_NETWORK.to_string()),
             contract_names: get_all_contract_names().expect("No contracts found"),
-            deployer_args: deploy_project.deployer_args.clone().unwrap_or(HashMap::new()),
-            path_to_account: deploy_project.path_to_account.clone().expect("No account found"),
+            deployer_args: deploy_project
+                .deployer_args
+                .clone()
+                .unwrap_or(HashMap::new()),
+            path_to_account: deploy_project
+                .path_to_account
+                .clone()
+                .expect("No account found"),
         };
         Self {
             deploy_configs: deployer,
@@ -57,12 +69,12 @@ impl Default for DeploymentWithAccount {
     }
 }
 
+#[allow(dead_code)]
 impl DeploymentWithAccount {
     pub fn new(deploy_config: Deployer) -> Self {
-        let deployment_account: Account = load_account_from_pk_file(
-            &deploy_config.path_to_account,
-            &deploy_config.network
-        ).expect("Failed to load account");
+        let deployment_account: Account =
+            load_account_from_pk_file(&deploy_config.path_to_account, &deploy_config.network)
+                .expect("Failed to load account");
         Self {
             deploy_configs: deploy_config,
             account: deployment_account,
@@ -155,35 +167,33 @@ impl DeploymentWithAccount {
         let contract_wasm_paths: Vec<PathBuf> = contract_wasm_set.into_iter().collect();
         let contract_zkwa_paths: Vec<PathBuf> = contract_zkwa_set.into_iter().collect();
 
-        let contract_args_hashmap: HashMap<String, Vec<String>> = self.deploy_configs.deployer_args.clone();
-
-
+        let contract_args_hashmap: HashMap<String, Vec<String>> =
+            self.deploy_configs.deployer_args.clone();
 
         for (index, name) in names.iter().enumerate() {
             // get name of current contract
             let contract_args: Vec<String> =
                 contract_args_hashmap.get(name).cloned().unwrap_or_default();
 
-            let contract_pbc_path: Option<PathBuf> =
-                if contract_pbc_paths.get(index).map_or(true, |p: &PathBuf| !p.exists()) {
-                    None
-                } else {
-                    Some(contract_pbc_paths[index].clone())
-                };
-            let contract_abi_path: Option<PathBuf> = contract_abi_paths.get(index).filter(|p: &&PathBuf| p.exists()).cloned();
+            let contract_pbc_path: Option<PathBuf> = contract_pbc_paths
+                .get(index)
+                .filter(|p: &&PathBuf| p.exists())
+                .cloned();
+            let contract_abi_path: Option<PathBuf> = contract_abi_paths
+                .get(index)
+                .filter(|p: &&PathBuf| p.exists())
+                .cloned();
 
-            let contract_wasm_path: Option<PathBuf> =
-                if contract_wasm_paths.get(index).map_or(true, |p: &PathBuf| !p.exists()) {
-                    None
-                } else {
-                    Some(contract_wasm_paths[index].clone())
-                };
-            let contract_zkwa_path: Option<PathBuf> =
-                if contract_zkwa_paths.get(index).map_or(true, |p: &PathBuf| !p.exists()) {
-                    None
-                } else {
-                    Some(contract_zkwa_paths[index].clone())
-                };
+            let contract_wasm_path: Option<PathBuf> = contract_wasm_paths
+                .get(index)
+                .filter(|p: &&PathBuf| p.exists())
+                .cloned();
+
+            let contract_zkwa_path: Option<PathBuf> = contract_zkwa_paths
+                .get(index)
+                .filter(|p: &&PathBuf| p.exists())
+                .cloned();
+
             let result = self.deploy_contract(
                 contract_pbc_path,
                 contract_abi_path,
@@ -191,10 +201,15 @@ impl DeploymentWithAccount {
                 contract_zkwa_path,
                 contract_args,
             );
+            /// TODO write address and contract name to a file for frontend to read
             if result.is_err() {
-                println!("Error deploying contract: {:?}", result.err().unwrap());
+                eprintln!(
+                    "Error deploying contract {}: {:?}",
+                    name,
+                    result.err().unwrap()
+                );
             } else {
-                println!("Contract deployed: {:?}", result);
+                println!("Contract deployed: {}", name);
             }
         }
 
@@ -296,15 +311,31 @@ mod tests {
         // get pk files
         let pk_files: Vec<PathBuf> = get_pk_files();
         if pk_files.len() > 0 {
-        // create new project
-        let deployment_with_account: DeploymentWithAccount = DeploymentWithAccount::default();
-        assert!(deployment_with_account.deploy_configs.path_to_account.is_file());
-        assert_eq!(deployment_with_account.account.path.is_file().clone(), true);
-        assert_eq!(deployment_with_account.account.path.extension().unwrap(), "pk");
-        assert_eq!(deployment_with_account.account.path.clone().file_name().unwrap().to_str().unwrap(), format!("{}.pk", deployment_with_account.account.address));
-        assert_eq!(deployment_with_account.account.address.len(), 42);
-        assert_eq!(deployment_with_account.account.private_key.len(), 64);
-        assert_eq!(deployment_with_account.account.network, "testnet"); 
+            // create new project
+            let deployment_with_account: DeploymentWithAccount = DeploymentWithAccount::default();
+            assert!(deployment_with_account
+                .deploy_configs
+                .path_to_account
+                .is_file());
+            assert_eq!(deployment_with_account.account.path.is_file().clone(), true);
+            assert_eq!(
+                deployment_with_account.account.path.extension().unwrap(),
+                "pk"
+            );
+            assert_eq!(
+                deployment_with_account
+                    .account
+                    .path
+                    .clone()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+                format!("{}.pk", deployment_with_account.account.address)
+            );
+            assert_eq!(deployment_with_account.account.address.len(), 42);
+            assert_eq!(deployment_with_account.account.private_key.len(), 64);
+            assert_eq!(deployment_with_account.account.network, "testnet");
         } else {
             println!("must create a new account");
         }

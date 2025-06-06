@@ -4,7 +4,7 @@ use k256::{
     AffinePoint, ProjectivePoint, PublicKey, Secp256k1, SecretKey,
 };
 
-use hmac_sha512::{HMAC};
+use hmac_sha512::HMAC;
 use k256::elliptic_curve::group::Group;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
 use k256::elliptic_curve::PrimeField;
@@ -48,7 +48,6 @@ impl ExtendedKey {
         self.private_key.is_some()
     }
 }
-
 
 #[allow(dead_code)]
 impl Bip32 {

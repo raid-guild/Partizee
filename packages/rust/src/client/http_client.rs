@@ -1,4 +1,3 @@
-
 use reqwest::{
     header::{HeaderMap, HeaderValue, ACCEPT, CONTENT_TYPE},
     Client,
@@ -95,8 +94,8 @@ impl HttpClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::{Deserialize, Serialize};
     use crate::utils::constants::TESTNET_RPC_ENDPOINT;
+    use serde::{Deserialize, Serialize};
     #[derive(Debug, Serialize, Deserialize)]
     struct TestData {
         id: i32,

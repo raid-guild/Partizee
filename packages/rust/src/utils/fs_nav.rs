@@ -5,26 +5,30 @@ use walkdir::WalkDir;
 
 /// note: this function is used to find the root of the workspace, it will search up to 3 levels of directories for a Cargo.toml file with the workspace flag
 pub fn find_workspace_root() -> Option<PathBuf> {
-    let mut current_folder: PathBuf = env::current_dir().unwrap();
+    let mut current_folder: PathBuf = env::current_dir().ok()?;
     for _ in 0..3 {
         for entry in WalkDir::new(&current_folder).max_depth(5) {
             if let Ok(entry) = entry {
                 let path = entry.path();
                 if path.is_dir() {
-                let files = path.read_dir().unwrap().flatten();
-                for file in files {
-                    if file.path().file_name().unwrap().to_str().unwrap() == "Cargo.toml" {
-                        let contents = std::fs::read_to_string(file.path()).unwrap();
-                        if contents.contains("[workspace]") {
-                            return Some(path.to_path_buf());
-                        }
+                    let files = path.read_dir().ok()?.flatten();
+                    for file in files {
+                        if file.path().file_name()?.to_str()? == "Cargo.toml" {
+                            let contents = std::fs::read_to_string(file.path()).ok()?;
+                            if contents.contains("[workspace]") {
+                                return Some(path.to_path_buf());
+                            }
                         }
                     }
                 }
             }
         }
         // Move up one directory
-        current_folder = current_folder.parent().unwrap().to_path_buf();
+        if let Some(parent) = current_folder.parent() {
+            current_folder = parent.to_path_buf();
+        } else {
+            break;
+        }
     }
     None
 }
@@ -42,7 +46,11 @@ pub fn find_dir(current_folder: &PathBuf, target_folder: &str) -> Option<PathBuf
             }
         }
         // Move up one directory
-        current_folder = current_folder.parent().unwrap().to_path_buf();
+        if let Some(parent) = current_folder.parent() {
+            current_folder = parent.to_path_buf();
+        } else {
+            break;
+        }
     }
     None
 }
@@ -53,7 +61,7 @@ pub fn find_files_with_extension(starting_path: &PathBuf, extension: &str) -> Ve
     let mut matches = Vec::new();
     let mut current_path: PathBuf = starting_path.clone();
     for _ in 0..3 {
-        for entry in WalkDir::new(starting_path).max_depth(5) {
+        for entry in WalkDir::new(&current_path).max_depth(5) {
             if let Ok(entry) = entry {
                 if entry.path().is_dir() {
                     let files = entry.path().read_dir().unwrap().flatten();
@@ -67,7 +75,11 @@ pub fn find_files_with_extension(starting_path: &PathBuf, extension: &str) -> Ve
             }
         }
         if matches.is_empty() {
-            current_path = current_path.parent().unwrap().to_path_buf();
+            if let Some(parent) = current_path.parent() {
+                current_path = parent.to_path_buf();
+            } else {
+                break;
+            }
         }
     }
     matches
@@ -79,7 +91,7 @@ pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf>
     let mut matches = Vec::new();
     let mut current_path: PathBuf = PathBuf::from(starting_path);
     for _ in 0..3 {
-        for entry in WalkDir::new(starting_path).max_depth(5) {
+        for entry in WalkDir::new(&current_path).max_depth(5) {
             if let Ok(entry) = entry {
                 if entry.path().is_dir() {
                     let files = entry.path().read_dir().unwrap().flatten();
@@ -93,7 +105,11 @@ pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf>
             }
         }
         if matches.is_empty() {
-            current_path = current_path.parent().unwrap().to_path_buf();
+            if let Some(parent) = current_path.parent() {
+                current_path = parent.to_path_buf();
+            } else {
+                break;
+            }
         }
     }
     matches
@@ -133,7 +149,8 @@ pub fn get_all_contract_names() -> Result<Vec<String>, Box<dyn std::error::Error
                 .to_string()
         })
         .collect();
-    Ok(contract_names)
+    let unique_contract_names: HashSet<String> = contract_names.into_iter().collect();
+    Ok(unique_contract_names.into_iter().collect())
 }
 
 pub fn get_pk_files() -> Vec<PathBuf> {
@@ -143,13 +160,20 @@ pub fn get_pk_files() -> Vec<PathBuf> {
         let mut depth = 0;
         let mut outer_path: PathBuf = root_path.clone();
         loop {
-            outer_path = outer_path.parent().unwrap().to_path_buf();
-            pk_files_vec = find_files_with_extension(&outer_path, "pk");
-            depth += 1;
-            if depth > 5 {
-                break;
-            }
-            if !pk_files_vec.is_empty() {
+            outer_path = outer_path
+                .parent()
+                .unwrap_or(&PathBuf::from(""))
+                .to_path_buf();
+            if outer_path.is_dir() {
+                pk_files_vec = find_files_with_extension(&outer_path, "pk");
+                depth += 1;
+                if depth > 5 {
+                    break;
+                }
+                if !pk_files_vec.is_empty() {
+                    break;
+                }
+            } else {
                 break;
             }
         }

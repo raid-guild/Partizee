@@ -86,7 +86,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-n`, `--network <NETWORK>` — Network to create account on.
     - `-p`, `--path <PATH>` — Path to a .pk file to use for account
     - `-a`, `--address <ADDRESS>` — Account address (optional if path to a valid pk file or a valid private key is provided)
-    - `-k', '--private-key <PRIVATE_KEY>` - private-key to be used
+    - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
 
 - `partizee account show [OPTIONS]`
   - Show account details.
@@ -96,7 +96,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-n`, `--network <NETWORK>` — Network.
     - `-p`, `--path <PATH>` — Path to a .pk file to use for account
     - `-a`, `--address <ADDRESS>` — Account address (optional if path to a valid pk file or a valid private key is provided)
-    - `-k', '--private-key <PRIVATE_KEY>` - private-key to be used
+    - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
 
 - `partizee account mint-gas [OPTIONS]`
   - Mint gas for a testnet account.
@@ -106,7 +106,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-n`, `--network <NETWORK>` — Network.
     - `-p`, `--path <PATH>` — Path to a .pk file to use for account
     - `-a`, `--address <ADDRESS>` — Account address (optional if path to a valid pk file or a valid private key is provided)
-    - `-k', '--private-key <PRIVATE_KEY>` - private-key to be used
+    - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
 
 ---
 

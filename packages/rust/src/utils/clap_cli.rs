@@ -83,7 +83,7 @@ pub enum Commands {
             num_args = 1..,
             allow_hyphen_values = true
         )]
-        files_to_compile: Option<String>,
+        files_to_compile: Option<Vec<String>>,
         #[clap(
             long = "build-args",
             short = 'b',
@@ -153,7 +153,11 @@ pub struct AccountSharedArgs {
     pub(crate) interactive: bool,
     #[clap(help = "name of the account", short = 'n', long = "name")]
     pub(crate) name: Option<String>,
-    #[clap(help = "network account will be used on", short = 'n', long = "network")]
+    #[clap(
+        help = "network account will be used on",
+        short = 'w',
+        long = "network"
+    )]
     pub(crate) network: Option<String>,
     #[clap(help = "path to pk file", short = 'p', long = "path")]
     pub(crate) path: Option<String>,

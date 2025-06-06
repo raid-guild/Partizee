@@ -7,20 +7,23 @@ use cliclack::{confirm, input, intro, outro, select};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub fn new_project_menu(name: Option<String>, output_dir: Option<String>) -> Result<ProjectConfig, Box<dyn std::error::Error>> {
+pub fn new_project_menu(
+    name: Option<String>,
+    output_dir: Option<String>,
+) -> Result<ProjectConfig, Box<dyn std::error::Error>> {
     intro("Partizee - Create a new Partisia Blockchain project")?;
 
     let name: String = if name.is_some() {
         name.unwrap()
     } else {
         input("What is your project name?")
-        .placeholder("my-dapp")
-        .validate(|input: &String| {
-            if input.is_empty() {
-                Err("Project name cannot be empty")
-            } else {
-                Ok(())
-            }
+            .placeholder("my-dapp")
+            .validate(|input: &String| {
+                if input.is_empty() {
+                    Err("Project name cannot be empty")
+                } else {
+                    Ok(())
+                }
             })
             .interact()?
     };
@@ -29,24 +32,26 @@ pub fn new_project_menu(name: Option<String>, output_dir: Option<String>) -> Res
     if output_dir.is_some() {
         output_directory = output_dir;
     } else {
-    let use_custom_dir = confirm("Would you like to specify a custom output directory? (if No: we'll create the project in the current directory with the name already specified)")
+        let use_custom_dir = confirm("Would you like to specify a custom output directory? (if No: we'll create the project in the current directory with the name already specified)")
         .initial_value(false)
         .interact()?;
 
         output_directory = if use_custom_dir {
-        Some(
-            input("Enter output directory path")
-                .placeholder(&name)
-                .interact()?,
+            Some(
+                input("Enter output directory path")
+                    .placeholder(&name)
+                    .interact()?,
             )
-    } else {
-        None
+        } else {
+            None
         };
     };
     outro("Project configuration complete!")?;
 
-
-    Ok(ProjectConfig { name: name, output_dir: output_directory })
+    Ok(ProjectConfig {
+        name: name,
+        output_dir: output_directory,
+    })
 }
 
 pub fn compile_menu(
@@ -397,10 +402,7 @@ pub fn custom_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
         private_key: account_private_key_input,
         path: pathbuf_to_pk,
     };
-    let account: Account = Account::new(
-        account_config
-    )
-    .unwrap();
+    let account: Account = Account::new(account_config).unwrap();
     Ok(account)
 }
 

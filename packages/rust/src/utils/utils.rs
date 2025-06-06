@@ -1,7 +1,7 @@
 use crate::commands::account::Account;
 use crate::utils::fs_nav::find_workspace_root;
-use serde::de::DeserializeOwned;
 use rand::Rng;
+use serde::de::DeserializeOwned;
 use std::{
     fs,
     path::PathBuf,
@@ -48,40 +48,41 @@ pub fn load_account_from_pk_file(
     network: &str,
 ) -> Result<Account, Box<dyn std::error::Error>> {
     if !path.is_file() {
-        return Err(format!("load_account_from_pk_file: Invalid path: {}", path.display()).into());
+        panic!("load_account_from_pk_file: Failed to read file: {}", path.display())  
     }
     let private_key: String = std::fs::read_to_string(path).unwrap_or_else(|e| {
-        return format!("load_account_from_pk_file: Failed to read file: {}", e).into();
+        panic!("load_account_from_pk_file: Failed to read file: {}", e)  
     });
     if private_key.is_empty() {
-        return Err(format!("load_account_from_pk_file: Private key is empty").into());
+        panic!("load_account_from_pk_file: Private key is empty")  
     }
-    assert_private_key_length(&private_key).expect("load_account_from_pk_file: Invalid private key");
+    assert_private_key_length(&private_key)
+        .expect("load_account_from_pk_file: Invalid private key");
     // get address from file name - remove extension
 
-        let file_name: String = path.file_name().unwrap().to_str().unwrap().to_string();
-        let mut address: String = file_name.split('.').nth(0).unwrap().to_string();
+    let file_name: String = path.file_name().unwrap().to_str().unwrap().to_string();
+    let mut address: String = file_name.split('.').nth(0).unwrap().to_string();
 
+    let valid_address = address_is_valid(&address, &private_key).unwrap_or(false);
 
-        let valid_address = address_is_valid(&address, &private_key).unwrap_or(false);
+    if !valid_address {
+        address = get_address_from_pk(&private_key)
+            .expect("load_account_from_pk_file: Failed to get address from private key");
+        assert_address_length(&address).expect("load_account_from_pk_file: Invalid address");
+    }
 
-        if !valid_address {
-            address = get_address_from_pk(&private_key).expect("load_account_from_pk_file: Failed to get address from private key");
-            assert_address_length(&address).expect("load_account_from_pk_file: Invalid address");
-        }  
+    let valid_address = address_is_valid(&address, &private_key).unwrap_or(false);
 
-        let valid_address = address_is_valid(&address, &private_key).unwrap_or(false);
-
-        if !valid_address {
-            return Err("load_account_from_pk_file: Invalid private key".into());
-        }
-        let account: Account = Account {
-            network: network.to_string(),
-            address: address,
-            private_key: private_key,
-            path: path.to_path_buf(),
-        };
-        Ok(account)
+    if !valid_address {
+        return Err("load_account_from_pk_file: Invalid private key".into());
+    }
+    let account: Account = Account {
+        network: network.to_string(),
+        address: address,
+        private_key: private_key,
+        path: path.to_path_buf(),
+    };
+    Ok(account)
 }
 
 pub fn assert_address_length(address: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -98,17 +99,21 @@ pub fn assert_private_key_length(private_key: &str) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn get_account_address_from_path(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
     if path.is_file() {
         // get account address from path name account is the last word in path - remove extension path could be absolute or relative
-        let account_name: String = path.file_name().unwrap().to_str().unwrap().to_string();
-        let account_vec: Vec<String> = account_name.split('.').map(|s| s.to_string()).collect();
-        let account_address_with_extension: String = account_vec.last().unwrap().to_string();
-        let account_address: String = account_address_with_extension
-            .split('.')
-            .nth(0)
-            .unwrap()
-            .to_string();
+        let file_name = path.file_name()  
+                   .ok_or("Invalid file path")?  
+                   .to_str()  
+                   .ok_or("Invalid UTF-8 in filename")?;  
+               
+               // Remove extension to get address  
+               let account_address = file_name.split('.')  
+                   .next()  
+                   .ok_or("Empty filename")?  
+                   .to_string();  
+
         return Ok(account_address);
     } else {
         return Err("get_account_address_from_path: Invalid path provided".into());
@@ -120,9 +125,10 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     if private_key.len() != 64 {
         return Err("get_address_from_pk: Invalid private key".into());
     }
-    let root_path: PathBuf = find_workspace_root().expect("get_address_from_pk: Failed to find workspace root");
-    
-    // write temp file with private key 
+    let root_path: PathBuf =
+        find_workspace_root().expect("get_address_from_pk: Failed to find workspace root");
+
+    // write temp file with private key
     // create a random string for the temp file name
     let temp_file_name: String = format!("temp_{}.pk", rand::thread_rng().gen_range(1..=1000000));
     let temp_file: PathBuf = root_path.join(temp_file_name);
@@ -141,14 +147,13 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
         .output();
 
     // remove temp file
-    if temp_file.exists() {
-        fs::remove_file(&temp_file).unwrap();
-    }
-    
+    let _ = fs::remove_file(&temp_file);  
+
     if output.is_ok() {
         // get address from command output
-        let mut address: String = String::from_utf8_lossy(&output.as_ref().unwrap().stdout).to_string();
-        
+        let mut address: String =
+            String::from_utf8_lossy(&output.as_ref().unwrap().stdout).to_string();
+
         // trim non alphanumeric characters
         address = address.chars().filter(|c| c.is_alphanumeric()).collect();
         // validate address length
@@ -173,7 +178,11 @@ pub fn address_is_valid(
     let derived_address = if let Ok(addr) = get_address_from_pk(&private_key) {
         addr
     } else {
-        return Err(format!("address_is_valid: Failed to get address from private key: {}", private_key).into());
+        return Err(format!(
+            "address_is_valid: Failed to get address from private key: {}",
+            private_key
+        )
+        .into());
     };
 
     // validate address length
@@ -189,16 +198,25 @@ pub fn address_is_valid(
 }
 
 pub fn create_pk_file(private_key: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
-        let root_path: PathBuf = find_workspace_root().expect("create_pk_file: Failed to find workspace root");
-        let address: String = get_address_from_pk(private_key).expect("create_pk_file: Failed to get address from private key");
-        let pk_file: PathBuf = root_path.join(format!("{}.pk", address));
-        fs::write(&pk_file, private_key).unwrap();
-        Ok(pk_file)
+    let root_path: PathBuf =
+        find_workspace_root().expect("create_pk_file: Failed to find workspace root");
+    let address: String = get_address_from_pk(private_key)
+        .expect("create_pk_file: Failed to get address from private key");
+    let pk_file: PathBuf = root_path.join(format!("{}.pk", address));
+    fs::write(&pk_file, private_key)  
+        .map_err(|e| format!("Failed to write private key file: {}", e))?;  
+    Ok(pk_file)
 }
-
+#[allow(dead_code)]
 pub fn trim_public_key(std_output: &Output) -> String {
     let line = String::from_utf8_lossy(&std_output.stdout).to_string();
-    let public_key: String = line.split(':').nth(1).unwrap().trim().to_string();
+    let public_key = line.split(':')  
+           .nth(1)  
+           .map(|s| s.trim().to_string())  
+           .unwrap_or_else(|| {  
+               eprintln!("Warning: Unable to parse public key from output: {}", line);  
+               String::new()  
+           });  
     public_key
 }
 
@@ -212,16 +230,20 @@ mod tests {
         let valid_address = address_is_valid(
             "00d277aa1bf5702ab9fc690b04bd68b5a981095530",
             "9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(valid_address, true, "failed to validate address");
     }
 
     #[test]
     fn test_get_address_from_pk() {
-        let result = get_address_from_pk(
-            "9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0",
-        );
+        let result =
+            get_address_from_pk("9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0");
         println!("result: {:?}", result);
-        assert_eq!(result.unwrap(), "00d277aa1bf5702ab9fc690b04bd68b5a981095530", "address is not correct");
+        assert_eq!(
+            result.unwrap(),
+            "00d277aa1bf5702ab9fc690b04bd68b5a981095530",
+            "address is not correct"
+        );
     }
 }
