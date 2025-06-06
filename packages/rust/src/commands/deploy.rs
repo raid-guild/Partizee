@@ -4,8 +4,10 @@ use crate::utils::fs_nav::{
     find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root,
     get_all_contract_names,
 };
+use std::fs;
+use serde::{Serialize, Deserialize};
 use crate::utils::utils::{load_account_from_pk_file, print_error, print_output};
-
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -15,6 +17,13 @@ pub struct DeployConfigs {
     pub network: Option<String>,
     pub deployer_args: Option<HashMap<String, Vec<String>>>,
     pub path_to_account: Option<PathBuf>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Deployment {
+    pub name: String,
+    pub address: String,
+    pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -195,13 +204,14 @@ impl DeploymentWithAccount {
                 .cloned();
 
             let result = self.deploy_contract(
+                name,
                 contract_pbc_path,
                 contract_abi_path,
                 contract_wasm_path,
                 contract_zkwa_path,
                 contract_args,
             );
-            /// TODO write address and contract name to a file for frontend to read
+
             if result.is_err() {
                 eprintln!(
                     "Error deploying contract {}: {:?}",
@@ -209,6 +219,8 @@ impl DeploymentWithAccount {
                     result.err().unwrap()
                 );
             } else {
+                let deployment = result.unwrap();
+                save_deployment(deployment, &project_root)?;
                 println!("Contract deployed: {}", name);
             }
         }
@@ -218,12 +230,13 @@ impl DeploymentWithAccount {
 
     pub fn deploy_contract(
         &mut self,
+        name: &str,
         contract_pbc_path: Option<PathBuf>,
         contract_abi_path: Option<PathBuf>,
         contract_wasm_path: Option<PathBuf>,
         contract_zkwa_path: Option<PathBuf>,
         args: Vec<String>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    ) -> Result<Deployment, Box<dyn std::error::Error>> {
         // cargo partisia-contract transaction deploy --gas 10000000 --privatekey YourAccountFile.pk your_compiled_contract_file.pbc + contract inputs separated by spaces (strings in quotes)
         let private_key_path: PathBuf = self.account.path.clone();
 
@@ -293,14 +306,41 @@ impl DeploymentWithAccount {
         let deployment_tx: Output = command.output()?;
 
         if deployment_tx.status.success() {
-            // TODO: write output to file for frontend to read
-            return print_output("deploy_contract", &deployment_tx);
+            let output_str = String::from_utf8_lossy(&deployment_tx.stdout);
+            let address = output_str.lines().nth(1).unwrap_or("").to_string();
+            let deployment = Deployment { name: name.to_string(), address, args };
+            return Ok(deployment);
         } else {
-            return print_error(&deployment_tx);
+            return Err(format!("Failed to deploy contract: {:?}", deployment_tx).into());
         }
     }
 }
 
+
+fn save_deployment(deployment: Deployment, project_root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+                 // write deployment to target directory
+                 let target_dir: PathBuf = find_dir(&project_root, "target/wasm32-unknown-unknown/release").unwrap_or_else(|| {
+                    panic!("Failed to find target directory");
+                });
+                // pop the release directory and join the deployments directory
+                let deployment_dir: PathBuf = target_dir.parent().unwrap().join("deployments");
+                if !deployment_dir.exists() {
+                    fs::create_dir_all(&deployment_dir).unwrap();
+                }
+                // create filename from timestamp
+                let timestamp: String = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
+                let deployment_file: PathBuf = deployment_dir.join(format!("deployment-{}.json", timestamp));
+                let deployment_json: String = serde_json::to_string(&deployment).unwrap_or_else(|e| {
+                    eprintln!("Failed to serialize deployment: {}", e);
+                    return "".to_string();
+                });
+
+                fs::write(deployment_file, deployment_json).unwrap_or_else(|e| {
+                    eprintln!("Failed to write deployment: {}", e);
+                    return ();
+                });
+                Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
