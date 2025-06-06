@@ -133,18 +133,18 @@ pub enum Commands {
         )]
         deploy_args: Option<Vec<String>>,
         #[clap(help = "path to the account", short = 'a', long = "account")]
-        account_path: Option<String>,
+        pk_path: Option<String>,
     },
 
     #[clap(about = "create a new account")]
-    Account {
+    Profile {
         #[clap(subcommand)]
-        commands: AccountSubcommands,
+        commands: ProfileSubcommands,
     },
 }
 
 #[derive(Args, Debug)]
-pub struct AccountSharedArgs {
+pub struct ProfileSharedArgs {
     #[clap(
         help = "use interactive menu to create account",
         short = 'i',
@@ -163,25 +163,25 @@ pub struct AccountSharedArgs {
     pub(crate) path: Option<String>,
     #[clap(help = "account address", short = 'a', long = "address")]
     pub(crate) address: Option<String>,
-    #[clap(help = "account private key", short = 'k', long = "private-key")]
+    #[clap(help = "private key string", short = 'k', long = "private-key")]
     pub(crate) private_key: Option<String>,
 }
 
 #[derive(Subcommand)]
-pub enum AccountSubcommands {
+pub enum ProfileSubcommands {
     #[clap(about = "create a new account", name = "create")]
-    AccountCreate {
+    ProfileCreate {
         #[clap(flatten)]
-        shared_args: AccountSharedArgs,
+        shared_args: ProfileSharedArgs,
     },
     #[clap(about = "show account", name = "show")]
-    AccountShow {
+    ProfileShow {
         #[clap(flatten)]
-        shared_args: AccountSharedArgs,
+        shared_args: ProfileSharedArgs,
     },
     #[clap(about = "mint gas for account", name = "mint-gas")]
-    AccountMintGas {
+    ProfileMintGas {
         #[clap(flatten)]
-        shared_args: AccountSharedArgs,
+        shared_args: ProfileSharedArgs,
     },
 }
