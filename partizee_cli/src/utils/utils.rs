@@ -1,4 +1,4 @@
-use crate::commands::account::Account;
+use crate::commands::user_profile::Profile;
 use crate::utils::fs_nav::find_workspace_root;
 use rand::Rng;
 use serde::de::DeserializeOwned;
@@ -46,7 +46,7 @@ pub fn print_error<T: DeserializeOwned>(output: &Output) -> Result<T, Box<dyn st
 pub fn load_account_from_pk_file(
     path: &PathBuf,
     network: &str,
-) -> Result<Account, Box<dyn std::error::Error>> {
+) -> Result<Profile, Box<dyn std::error::Error>> {
     if !path.is_file() {
         return Err(format!(
             "load_account_from_pk_file: Failed to read file: {}",
@@ -87,11 +87,11 @@ pub fn load_account_from_pk_file(
     if !valid_address {
         return Err("load_account_from_pk_file: Invalid private key".into());
     }
-    let account: Account = Account {
+    let account: Profile = Profile {
         network: network.to_string(),
         address: address,
         private_key: private_key,
-        path: path.to_path_buf(),
+        path_to_pk: path.to_path_buf(),
     };
     Ok(account)
 }

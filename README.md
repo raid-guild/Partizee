@@ -10,6 +10,21 @@ Partizee is a CLI tool for creating and deploying full-stack Partisia dApps. It 
 
 ## Installation
 
+### Quick Install
+
+You can use the provided install script to build and install the CLI to your local bin directory:
+
+```sh
+./install.sh
+```
+
+This will build the project and copy the `partizee` binary to `~/.local/bin/partizee`.  
+Make sure `~/.local/bin` is in your `PATH`:
+
+```sh
+export PATH="$PATH:$HOME/.local/bin"
+```
+
 ### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable recommended)
@@ -76,7 +91,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-d`, `--deploy-args <ARGS>` — Contract name followed by its arguments, e.g. `--deploy-args MyContract arg1 arg2`.
     - `-a`, `--account <PATH>` — Path to the account pk file.
 
-### Account Management
+### Profile Management
 
 - `partizee account create [OPTIONS]`
   - Create a new blockchain account.
@@ -85,7 +100,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-n`, `--name <NAME>` — Name of the account.
     - `-n`, `--network <NETWORK>` — Network to create account on.
     - `-p`, `--path <PATH>` — Path to a .pk file to use for account
-    - `-a`, `--address <ADDRESS>` — Account address (optional if path to a valid pk file or a valid private key is provided)
+    - `-a`, `--address <ADDRESS>` — Profile address (optional if path to a valid pk file or a valid private key is provided)
     - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
 
 - `partizee account show [OPTIONS]`
@@ -95,7 +110,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-n`, `--name <NAME>` — Name of the account.
     - `-n`, `--network <NETWORK>` — Network.
     - `-p`, `--path <PATH>` — Path to a .pk file to use for account
-    - `-a`, `--address <ADDRESS>` — Account address (optional if path to a valid pk file or a valid private key is provided)
+    - `-a`, `--address <ADDRESS>` — Profile address (optional if path to a valid pk file or a valid private key is provided)
     - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
 
 - `partizee account mint-gas [OPTIONS]`
@@ -105,7 +120,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-n`, `--name <NAME>` — Name of the account.
     - `-n`, `--network <NETWORK>` — Network.
     - `-p`, `--path <PATH>` — Path to a .pk file to use for account
-    - `-a`, `--address <ADDRESS>` — Account address (optional if path to a valid pk file or a valid private key is provided)
+    - `-a`, `--address <ADDRESS>` — Profile address (optional if path to a valid pk file or a valid private key is provided)
     - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
 
 ---
@@ -138,7 +153,7 @@ cargo test
 
 ### Code Structure
 
-- `src/commands/account.rs` — Account and wallet management logic
+- `src/commands/account.rs` — Profile and wallet management logic
 - `src/utils/` — Utility functions for file system navigation, menus, and more
 
 ## Contributing

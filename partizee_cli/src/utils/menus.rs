@@ -1,9 +1,9 @@
-use crate::commands::account::{Account, AccountConfig};
+use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
 use crate::utils::fs_nav::get_pk_files;
-use cliclack::{confirm, input, intro, outro, select};
+use cliclack::{confirm, input, intro, outro, select, Input};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -60,9 +60,21 @@ pub fn compile_menu(
     let mut build_args_vec: Vec<String> = Vec::new();
     let mut additional_args_vec: Vec<String> = Vec::new();
     let mut files_vec: Vec<String> = Vec::new();
-
+    if config.path.is_none() {
+        let use_path_menu = confirm("Would you like to specify a path to the workspace Cargo.toml directory? (if No: we'll compile all contracts in the contracts directory with default settings)")
+        .initial_value(false)
+        .interact()?;
+        if use_path_menu {
+            let path_to_workspace: String = input("Enter the path to the workspace Cargo.toml directory")
+                .placeholder("/path/to/workspace")
+                .interact()?;
+            if !path_to_workspace.trim().is_empty() {
+                files_vec.push(path_to_workspace);
+            }
+        }
+    }
     if config.files.is_none() {
-        let use_file_menu = confirm("Would you like to specify which contracts to compile? (if No: we'll compile all contracts in the contracts directory with default settings)")
+        let use_file_menu = confirm("Would you like to specify specific contracts to compile? (if No: we'll compile all contracts in the contracts directory with default settings)")
         .initial_value(false)
         .interact()?;
         if use_file_menu {
@@ -222,6 +234,7 @@ pub fn compile_menu(
 
     Ok(ProjectCompiler {
         files,
+        path: config.path,
         build_args,
         additional_args,
     })
@@ -229,7 +242,7 @@ pub fn compile_menu(
 
 pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::error::Error>> {
     let network: Option<String>;
-    let path_to_account: Option<PathBuf>;
+    let path_to_pk: Option<PathBuf>;
 
     let mut custom_names: Option<Vec<String>> = None;
     let mut deployer_args_mapping: HashMap<String, Vec<String>> = HashMap::new();
@@ -287,18 +300,18 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
         custom_names = config.contract_names;
     }
 
-    if config.path_to_account.is_some() {
-        path_to_account = config.path_to_account;
+    if config.path_to_pk.is_some() {
+        path_to_pk = config.path_to_pk;
     } else {
         // ask if user wants to create a new account
         let select_account: bool = confirm("Would you like to select an existing account?")
             .initial_value(false)
             .interact()?;
         if select_account {
-            let selected_account: PathBuf = select_account_menu()?;
-            path_to_account = Some(selected_account);
+            let selected_account: PathBuf = select_pk_menu()?;
+            path_to_pk = Some(selected_account);
         } else {
-            path_to_account = None;
+            path_to_pk = None;
         }
     }
     let deployer_args: Option<HashMap<String, Vec<String>>> = if deployer_args_mapping.len() > 0 {
@@ -311,7 +324,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
         network: network,
         contract_names: custom_names,
         deployer_args: deployer_args,
-        path_to_account: path_to_account,
+        path_to_pk: path_to_pk,
     })
 }
 
@@ -363,61 +376,124 @@ pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     return Ok(force_create.unwrap());
 }
 
-pub fn custom_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
-    let path_to_pk: Option<String> = input_optional("Enter the path to the account private key file (hit enter to skip if no file exists and you want to enter in the private key manually)", None, None)?;
+pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
+    let path_to_pk: Option<String> = input_optional(
+        "Enter the path to the account private key file (hit enter to skip if no file exists and you want to enter in the private key manually)",
+        "pathbuf",
+        "001111111222222233333344444555555555666789.pk",
+        None,
+    )?;
     let account_network_input: Option<String> = input_optional(
         "Enter the account network. e.g. testnet, mainnet, <custom_rpc_url> (hit enter to skip, default is testnet)",
-        Some("testnet"),
+        "string",
+        "testnet",
         None,
     )?;
+
+    let account_private_key_input: Option<String> = input_optional(
+        "Optional: Enter the account private key, must be private key for entered address if address was entered otherwise address will be generated from the private key (hit enter to skip)",
+        "private_key",
+        "01234567890",
+        None,
+    )?;
+
     let account_address_input: Option<String> = input_optional(
         "Optional: Enter the account address (hit enter to skip)",
-        Some("0x1234567890"),
+        "address",
+        "001111111222222233333344444555555555666789",
         None,
     )?;
-    let account_private_key_input: Option<String> = input_optional("Optional: Enter the account private key, must be private key for entered address if address was entered otherwise address will be generated from the private key (hit enter to skip)", Some("01234567890"), None)?;
+    // check if address and private key are provided together
+    if account_address_input.is_some() && account_private_key_input.is_none() {
+        return Err("Private key is required if address is provided".into());
+    }
     let pathbuf_to_pk: Option<PathBuf> = if path_to_pk.is_some() {
         Some(PathBuf::from(path_to_pk.unwrap()))
     } else {
         None
     };
-    // check if address and private key are provided together
-    if account_address_input.is_some() && account_private_key_input.is_none() {
-        return Err("Private key is required if address is provided".into());
-    }
     if account_address_input.is_some() && account_private_key_input.is_some() {
-        let account_config: AccountConfig = AccountConfig {
+        let account_config: ProfileConfig = ProfileConfig {
             network: account_network_input,
             address: account_address_input,
             private_key: account_private_key_input,
-            path: pathbuf_to_pk,
+            path_to_pk: pathbuf_to_pk,
         };
         // check if private key is valid for the address
-        let account: Account = Account::new(account_config).unwrap();
+        let account: Profile = Profile::new(account_config).unwrap();
         return Ok(account);
     }
-    let account_config: AccountConfig = AccountConfig {
+    let account_config: ProfileConfig = ProfileConfig {
         network: account_network_input,
         address: account_address_input,
         private_key: account_private_key_input,
-        path: pathbuf_to_pk,
+        path_to_pk: pathbuf_to_pk,
     };
-    let account: Account = Account::new(account_config).unwrap();
+    let account: Profile = Profile::new(account_config).unwrap();
     Ok(account)
 }
-
+pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error>> {
+    let create_pbc_account: bool = confirm("Would you like to create a new account? (yes will overwrite the existing Wallet)")
+        .initial_value(false)
+        .interact()?;
+    if create_pbc_account {
+        let network: String = input("Enter the network to create the account on")
+            .placeholder("testnet")
+            .default_input("testnet")
+            .interact()?;
+        return Ok(network);
+    }
+    Err("No account created.".into())
+}
 fn input_optional(
     prompt: &str,
-    placeholder: Option<&str>,
+    input_type: &str,
+    placeholder: &str,
     default: Option<&str>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let mut inp = input(prompt);
-    if let Some(ph) = placeholder {
-        inp = inp.placeholder(ph);
+
+    // Set placeholder and default
+    inp = inp.placeholder(placeholder);
+    inp = inp.default_input(default.unwrap_or(""));
+
+    // Set up validation based on input_type
+    match input_type {
+        "pathbuf" => {
+            inp = inp.validate(|input: &String| {
+                let path = PathBuf::from(input);
+                if !path.exists() {
+                    Err("Path does not exist")
+                } else {
+                    Ok(())
+                }
+            });
+        }
+        "address" => {
+            inp = inp.validate(|input: &String| {
+                if input.trim().is_empty() {
+                    Ok(()) // Allow empty for optional
+                } else if input.trim().len() != 42 {
+                    Err("Address must be 42 characters long")
+                } else {
+                    Ok(())
+                }
+            });
+        }
+        "private_key" => {
+            inp = inp.validate(|input: &String| {
+                if input.trim().is_empty() {
+                    Ok(()) // Allow empty for optional
+                } else if input.trim().len() != 64 {
+                    Err("Private key must be 64 characters long")
+                } else {
+                    Ok(())
+                }
+            });
+        }
+        _ => {}
     }
-    if let Some(def) = default {
-        inp = inp.default_input(def);
-    }
+
     let value: String = inp.interact()?;
     Ok(if value.trim().is_empty() {
         None
@@ -426,7 +502,7 @@ fn input_optional(
     })
 }
 
-pub fn create_new_account_menu() -> Result<Account, Box<dyn std::error::Error>> {
+pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     let create_new: Result<&'static str, std::io::Error> =
         select("Would you like to create a new account?")
             .item(
@@ -441,10 +517,10 @@ pub fn create_new_account_menu() -> Result<Account, Box<dyn std::error::Error>> 
     match create_new {
         Ok(account_option) => match account_option {
             "default testnet" => {
-                return Ok(Account::default());
+                return Ok(Profile::default());
             }
             "custom" => {
-                return custom_account_menu();
+                return custom_profile_menu();
             }
             "cancel" => {
                 panic!("Cancelling account creation");
@@ -459,7 +535,7 @@ pub fn create_new_account_menu() -> Result<Account, Box<dyn std::error::Error>> 
     }
 }
 
-pub fn select_account_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // ask if user wants to select an account
     let select_account: Result<_, std::io::Error> =
         confirm("Would you like to select an account? (yes will open a menu to select an account)")

@@ -1,4 +1,4 @@
-use crate::utils::fs_nav::find_workspace_root;
+use crate::utils::fs_nav::{find_dir, find_workspace_root};
 use crate::utils::utils::COPIABLE_EXTENSIONS;
 use std::error::Error;
 use std::{
@@ -14,7 +14,7 @@ pub struct NewProject {
     pub output_dir: PathBuf,
     // the root of the project
     pub project_root: PathBuf,
-    pub executable_root: PathBuf,
+    pub templates_dir: PathBuf,
 }
 
 pub struct ProjectConfig {
@@ -38,15 +38,15 @@ impl NewProject {
         Ok(NewProject {
             dapp_name: config.name,
             output_dir,
-            project_root,
-            executable_root: find_workspace_root().unwrap_or_else(|| {
-                panic!("Failed to find workspace root");
+            project_root: project_root.clone(),
+            templates_dir: find_dir(&project_root, "templates").unwrap_or_else(|| {
+                panic!("Failed to find templates directory");
             }),
         })
     }
 
     pub fn create_project_directory(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let templates_dir = self.executable_root.join("templates");
+        let templates_dir = self.templates_dir.clone();
         for entry in WalkDir::new(&templates_dir)
             .into_iter()
             .filter_map(Result::ok)
@@ -78,7 +78,7 @@ impl NewProject {
         template_name: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // if src arg is provided, use it, otherwise use the default path
-        let source_path = src.unwrap_or_else(|| &self.executable_root);
+        let source_path = src.unwrap_or_else(|| &self.templates_dir);
         // if dst arg is provided, use it, otherwise use the default path
         let destination_path = dst.unwrap_or_else(|| &self.project_root);
 
@@ -114,7 +114,7 @@ impl NewProject {
     }
 
     pub fn copy_all_files(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let templates_dir: PathBuf = self.executable_root.join("templates");
+        let templates_dir: PathBuf = self.templates_dir.clone();
         for entry in WalkDir::new(&templates_dir)
             .into_iter()
             .filter_map(Result::ok)
