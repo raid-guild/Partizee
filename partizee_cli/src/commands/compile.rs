@@ -55,7 +55,7 @@ impl ProjectCompiler {
             // get absolute path
             let current_path = PathBuf::from(&path_arg).canonicalize()?;
             std::env::set_current_dir(&current_path)?;
-            println!("PATH CHANGED TO: {}", current_path.to_str().unwrap());
+            println!("PATH CHANGED TO: {}", current_path.display());
         }
 
         // if files is not None, compile the files
