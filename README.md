@@ -53,7 +53,7 @@ The binary will be located in `target/release/partizee`.
 Run the CLI tool:
 
 ```sh
-./target/release/partizee [COMMAND] [OPTIONS]
+cargo partizee [COMMAND] [OPTIONS]
 ```
 
 ## Commands
