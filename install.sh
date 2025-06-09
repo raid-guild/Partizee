@@ -39,7 +39,7 @@ cargo build --release --manifest-path Cargo.toml
 
 # Install partizee
 mkdir -p "$BIN_DIR"
-cp "target/release/partizee$EXE_EXT" "$BIN_DIR/partizee$EXE_EXT"
+cp "target/release/partizee_cli$EXE_EXT" "$BIN_DIR/partizee$EXE_EXT"
 chmod +x "$BIN_DIR/partizee$EXE_EXT"
 
 # Verify installation
