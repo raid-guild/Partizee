@@ -31,8 +31,8 @@ export function useWaitForTransaction(args?: {
   });
 
   return {
-    sendTransaction: mutation.mutate,
-    sendTransactionAsync: mutation.mutateAsync,
+    waitForTransaction: mutation.mutate,
+    waitForTransactionAsync: mutation.mutateAsync,
     ...mutation
   };
 }
