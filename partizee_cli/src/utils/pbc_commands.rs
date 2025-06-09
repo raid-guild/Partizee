@@ -1,7 +1,7 @@
-use std::process::Command;
 use crate::utils::fs_nav::id_pbc_path;
 use crate::utils::menus::force_new_wallet_menu;
 use crate::utils::utils::{print_error, print_output};
+use std::process::Command;
 
 pub fn pbc_create_new_account(network: &str) -> Result<(), Box<dyn std::error::Error>> {
     let network_command: String = format!("--net={}", &network);

@@ -411,8 +411,16 @@ mod tests {
                 "address is not set"
             );
             assert_eq!(account.clone().network, "testnet", "network is not set");
-            assert_eq!(account.clone().path_to_pk.is_file(), true, "path is not a file");
-            assert_eq!(account.clone().path_to_pk.is_dir(), false, "path is not a file");
+            assert_eq!(
+                account.clone().path_to_pk.is_file(),
+                true,
+                "path is not a file"
+            );
+            assert_eq!(
+                account.clone().path_to_pk.is_dir(),
+                false,
+                "path is not a file"
+            );
         } else {
             println!("must create a new account");
         }

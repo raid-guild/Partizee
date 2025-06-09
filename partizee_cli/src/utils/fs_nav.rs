@@ -127,36 +127,36 @@ pub fn get_all_contract_names() -> Result<Vec<String>, Box<dyn std::error::Error
         if !path.is_dir() {
             return Err("No contracts found, please compile contracts first".into());
         }
-    // all
-    let pbc_names: Vec<String> = find_files_with_extension(&path, "pbc")
-        .into_iter()
-        .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
-        .collect();
-    let zkwa_names: Vec<String> = find_files_with_extension(&path, "zkwa")
-        .into_iter()
-        .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
-        .collect();
+        // all
+        let pbc_names: Vec<String> = find_files_with_extension(&path, "pbc")
+            .into_iter()
+            .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+        let zkwa_names: Vec<String> = find_files_with_extension(&path, "zkwa")
+            .into_iter()
+            .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
 
-    let wasm_names: Vec<String> = find_files_with_extension(&path, "wasm")
-        .into_iter()
-        .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
-        .collect();
+        let wasm_names: Vec<String> = find_files_with_extension(&path, "wasm")
+            .into_iter()
+            .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
 
-    // trim extensions and remove duplicates from names and return vector of names
-    let contract_names: Vec<String> = pbc_names
-        .into_iter()
-        .chain(zkwa_names.into_iter())
-        .chain(wasm_names.into_iter())
-        .map(|name| {
-            std::path::Path::new(&name)
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        })
-        .collect();
-    let unique_contract_names: HashSet<String> = contract_names.into_iter().collect();
-    Ok(unique_contract_names.into_iter().collect())
+        // trim extensions and remove duplicates from names and return vector of names
+        let contract_names: Vec<String> = pbc_names
+            .into_iter()
+            .chain(zkwa_names.into_iter())
+            .chain(wasm_names.into_iter())
+            .map(|name| {
+                std::path::Path::new(&name)
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        let unique_contract_names: HashSet<String> = contract_names.into_iter().collect();
+        Ok(unique_contract_names.into_iter().collect())
     }
 }
 

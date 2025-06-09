@@ -42,11 +42,7 @@ pub enum Commands {
             long = "interactive"
         )]
         interactive: bool,
-        #[clap(
-            help = "path to the contracts directory",
-            short = 'p',
-            long = "path"
-        )]
+        #[clap(help = "path to the contracts directory", short = 'p', long = "path")]
         path: Option<String>,
         #[clap(
             long = "files",
