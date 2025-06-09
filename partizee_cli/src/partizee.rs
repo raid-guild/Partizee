@@ -27,6 +27,11 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             zero_knowledge, // for future use
         } => {
             let new_project: NewProject;
+            let mut interactive = interactive;
+            // if all args are empty open interactive menu
+            if !interactive && name.is_none() && output_dir.is_none() {
+                interactive = true;
+            }
             if interactive {
                 let menu_args: ProjectConfig = new_project_menu(name, output_dir)?;
                 new_project = NewProject::new(menu_args)?;
