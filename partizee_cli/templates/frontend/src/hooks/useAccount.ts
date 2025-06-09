@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { usePartisia } from '@/context/partisia';
 
-export function useProfile() {
+export function useAccount() {
   const { sdk } = usePartisia();
 
   const query = useQuery({

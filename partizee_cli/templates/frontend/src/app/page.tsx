@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { partisiaCrypto } from "partisia-crypto";
-import { useConnect, useProfile, useSignMessage, useWriteContract } from "@/hooks";
+import { useConnect, useAccount, useSignMessage, useWriteContract } from "@/hooks";
 import { CONTRACT_ADDRESS } from "@/utils/configs";
 
 export default function Home() {
-  const { account, isConnected } = useProfile();
+  const { account, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
   const { signMessage, error: signMessageError } = useSignMessage();
   const { writeContract, error: writeContractError } = useWriteContract();
@@ -45,7 +45,7 @@ export default function Home() {
       </p>
       <div className="flex flex-col gap-4 mt-8">
         <div className="flex flex-col gap-2 justify-center items-center">
-          <p>Profile:</p>
+          <p>Account:</p>
           <p>{account?.address ? "✅ Connected" : "❌ Not connected"}</p>
         </div>
         <button 
