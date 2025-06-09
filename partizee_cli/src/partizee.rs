@@ -9,19 +9,17 @@ use crate::utils::pbc_commands::pbc_create_new_account;
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
 use crate::commands::new::{NewProject, ProjectConfig};
-use crate::utils::clap_cli::{ProfileSubcommands, Cargo, Commands};
+use crate::utils::clap_cli::{ProfileSubcommands, Arguments, Commands};
 use crate::utils::fs_nav::{get_pk_files, get_all_contract_names};
 use crate::utils::menus::{
-    compile_menu, create_new_profile_menu, create_new_pbc_account_menu, deploy_menu, new_project_menu, select_pk_menu, 
+    compile_menu, create_new_pbc_account_menu, deploy_menu, new_project_menu, select_pk_menu, 
 };
 
 #[allow(unused_variables, unused_assignments)]
 pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
-    let cargo_cli: Cargo = Cargo::parse();
+    let partizee_cli: Arguments = Arguments::parse();
 
-    match cargo_cli {
-        Cargo::Partizee(args) => {
-            match args.commands {
+            match partizee_cli.commands {
                 Commands::New {
                     interactive,
                     name,
@@ -215,13 +213,12 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                             account.mint_gas().expect("Failed to mint gas");
                         }
                     }
-                },
+                }
             }
-        }
+    Ok(())
     }
 
-    Ok(())
-}
+
 
 fn parse_deploy_args(
     deploy_args: Option<Vec<String>>,
