@@ -1,7 +1,7 @@
-use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
+use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::fs_nav::get_pk_files;
 use cliclack::{confirm, input, intro, outro, select, Input};
 use std::collections::HashMap;
@@ -65,9 +65,10 @@ pub fn compile_menu(
         .initial_value(false)
         .interact()?;
         if use_path_menu {
-            let path_to_workspace: String = input("Enter the path to the workspace Cargo.toml directory")
-                .placeholder("/path/to/workspace")
-                .interact()?;
+            let path_to_workspace: String =
+                input("Enter the path to the workspace Cargo.toml directory")
+                    .placeholder("/path/to/workspace")
+                    .interact()?;
             if !path_to_workspace.trim().is_empty() {
                 files_vec.push(path_to_workspace);
             }
@@ -433,9 +434,10 @@ pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     Ok(account)
 }
 pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error>> {
-    let create_pbc_account: bool = confirm("Would you like to create a new account? (yes will overwrite the existing Wallet)")
-        .initial_value(false)
-        .interact()?;
+    let create_pbc_account: bool =
+        confirm("Would you like to create a new account? (yes will overwrite the existing Wallet)")
+            .initial_value(false)
+            .interact()?;
     if create_pbc_account {
         let network: String = input("Enter the network to create the account on")
             .placeholder("testnet")

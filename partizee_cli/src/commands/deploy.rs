@@ -1,17 +1,17 @@
+use crate::commands::compile::ProjectCompiler;
 use crate::commands::user_profile::Profile;
 use crate::utils::constants::DEFAULT_NETWORK;
 use crate::utils::fs_nav::{
     find_dir, find_files_with_extension, find_paths_with_name, find_workspace_root,
     get_all_contract_names,
 };
-use std::fs;
-use serde::{Serialize, Deserialize};
-use crate::commands::compile::ProjectCompiler;
 use crate::utils::utils::load_account_from_pk_file;
-use std::time::{SystemTime, UNIX_EPOCH};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
+use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone)]
 pub struct DeployConfigs {
     pub contract_names: Option<Vec<String>>,
@@ -68,10 +68,7 @@ impl Default for DeploymentWithProfile {
                 .deployer_args
                 .clone()
                 .unwrap_or(HashMap::new()),
-            path_to_pk: deploy_project
-                .path_to_pk
-                .clone()
-                .expect("No account found"),
+            path_to_pk: deploy_project.path_to_pk.clone().expect("No account found"),
         };
         Self {
             deploy_configs: deployer,
@@ -238,7 +235,6 @@ impl DeploymentWithProfile {
                     panic!("Error deploying contract {}: {:?}", name, e);
                 });
                 deployments.push(deployment);
-
             }
         }
 
@@ -325,14 +321,31 @@ impl DeploymentWithProfile {
 
         if deployment_tx.status.success() {
             let output_str = String::from_utf8_lossy(&deployment_tx.stdout);
-            let address = output_str.split(":").nth(1).unwrap_or("").split("\n").nth(0).unwrap_or("").trim().to_string();
+            let address = output_str
+                .split(":")
+                .nth(1)
+                .unwrap_or("")
+                .split("\n")
+                .nth(0)
+                .unwrap_or("")
+                .trim()
+                .to_string();
             if address.is_empty() {
                 return Err("Failed to get address from deployment output".into());
             }
-            let timestamp: String = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_else(|_| {
-                panic!("Failed to get timestamp");
-            }).as_secs().to_string();
-            let deployment = Deployment { name: name.to_string(), address, args, timestamp };
+            let timestamp: String = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_else(|_| {
+                    panic!("Failed to get timestamp");
+                })
+                .as_secs()
+                .to_string();
+            let deployment = Deployment {
+                name: name.to_string(),
+                address,
+                args,
+                timestamp,
+            };
             println!("{}", &output_str);
             return Ok(deployment);
         } else {
@@ -341,42 +354,47 @@ impl DeploymentWithProfile {
     }
 }
 
+fn save_deployments(
+    deployments: Vec<Deployment>,
+    project_root: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // write deployment to target directory
+    let target_dir: PathBuf = find_dir(&project_root, "target/wasm32-unknown-unknown/release")
+        .unwrap_or_else(|| {
+            panic!("Failed to find target directory");
+        });
+    // pop the release directory and join the deployments directory
+    let deployment_dir: PathBuf = target_dir.parent().unwrap().join("deployments");
+    if !deployment_dir.exists() {
+        fs::create_dir_all(&deployment_dir).unwrap();
+    }
 
-fn save_deployments(deployments: Vec<Deployment>, project_root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-                 // write deployment to target directory
-                 let target_dir: PathBuf = find_dir(&project_root, "target/wasm32-unknown-unknown/release").unwrap_or_else(|| {
-                    panic!("Failed to find target directory");
-                });
-                // pop the release directory and join the deployments directory
-                let deployment_dir: PathBuf = target_dir.parent().unwrap().join("deployments");
-                if !deployment_dir.exists() {
-                    fs::create_dir_all(&deployment_dir).unwrap();
-                }
+    // get current deployment-latest.json and rename it to deployment-<timestamp>.json
+    let latest_path: PathBuf = deployment_dir.join("deployment-latest.json");
+    if latest_path.exists() {
+        let timestamp: String = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            .to_string();
+        let new_filename: PathBuf = deployment_dir.join(format!("deployment-{}.json", timestamp));
+        fs::rename(&latest_path, new_filename).unwrap_or_else(|e| {
+            eprintln!("Failed to rename deployment-latest.json: {}", e);
+            return ();
+        });
+    }
 
-                // get current deployment-latest.json and rename it to deployment-<timestamp>.json
-                let latest_path: PathBuf = deployment_dir.join("deployment-latest.json");
-                if latest_path.exists() {
-                    let timestamp: String = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-                    let new_filename: PathBuf = deployment_dir.join(format!("deployment-{}.json", timestamp));
-                    fs::rename(&latest_path, new_filename).unwrap_or_else(|e| {
-                        eprintln!("Failed to rename deployment-latest.json: {}", e);
-                        return ();
-                    });
-                }
-
-
-         
-                if deployments.len() > 0 {
-                    let deployments_json: String = serde_json::to_string(&deployments).unwrap_or_else(|e| {
-                        eprintln!("Failed to write deployment: {}", e);
-                        return "".to_string();
-                    });
-                    fs::write(&latest_path, deployments_json).unwrap_or_else(|e| {
-                        eprintln!("Failed to write deployment: {}", e);
-                        return ();
-                    });
-                }
-                Ok(())
+    if deployments.len() > 0 {
+        let deployments_json: String = serde_json::to_string(&deployments).unwrap_or_else(|e| {
+            eprintln!("Failed to write deployment: {}", e);
+            return "".to_string();
+        });
+        fs::write(&latest_path, deployments_json).unwrap_or_else(|e| {
+            eprintln!("Failed to write deployment: {}", e);
+            return ();
+        });
+    }
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -390,13 +408,17 @@ mod tests {
         if pk_files.len() > 0 {
             // create new project
             let deployment_with_account: DeploymentWithProfile = DeploymentWithProfile::default();
-            assert!(deployment_with_account
-                .deploy_configs
-                .path_to_pk
-                .is_file());
-            assert_eq!(deployment_with_account.account.path_to_pk.is_file().clone(), true);
+            assert!(deployment_with_account.deploy_configs.path_to_pk.is_file());
             assert_eq!(
-                deployment_with_account.account.path_to_pk.extension().unwrap(),
+                deployment_with_account.account.path_to_pk.is_file().clone(),
+                true
+            );
+            assert_eq!(
+                deployment_with_account
+                    .account
+                    .path_to_pk
+                    .extension()
+                    .unwrap(),
                 "pk"
             );
             assert_eq!(

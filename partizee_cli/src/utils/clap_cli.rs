@@ -1,51 +1,18 @@
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
-#[clap(name = "cargo", bin_name = "cargo")]
-pub(crate) enum Cargo {
-    Partizee(Arguments),
-}
-
-#[derive(Args)]
 #[clap(
-    author,
-    version,
+    name = "partizee",
+    author = "Raid Guild",
+    version = "0.1.0",
     long_about = "\nPartizee \nScaffolds builds and deploys new partisia dapps.",
     about = "\nPartizee \nScaffolds builds and deploys new partisia dapps"
 )]
-pub(crate) struct Arguments {
-    #[clap(subcommand)]
-    pub(crate) commands: Commands,
-}
-#[derive(Args, Clone)]
-#[clap(disable_help_flag = true)]
-pub struct CliArgs {
-    #[clap(help = "no messaages printed to stdout", short = 'q', long = "quiet")]
-    quiet: bool,
-    #[clap(
-        help = "Url specifying the location to retrieve the partizee JAR from. If not given, a user configuration file in\n\
-                    ~/.partizee/config.toml or default values will be used.\n\
-                    Uses netrc for authentication.\n\
-                    Example usage:\n\
-                     --use https://gitlab.com/api/v4/groups/12499775/-/packages/maven/com/partisiablockchain/language/partisia-cli/4.1.0/partisia-cli-4.1.0-jar-with-dependencies.jar",
-        short = 'u',
-        long = "use"
-    )]
-    pub(crate) url: Option<String>,
-    #[clap(
-        help = "Print usage description of the command.",
-        short = 'h',
-        long = "help"
-    )]
-    pub(crate) help: bool,
-    #[clap(
-        help = "Print version of the Partisia Cli",
-        short = 'V',
-        long = "version"
-    )]
-    pub(crate) version: bool,
-}
 
+pub struct Arguments {
+    #[clap(subcommand)]
+    pub commands: Commands,
+}
 #[derive(Subcommand)]
 pub enum Commands {
     #[clap(about = "create a new dapp")]
@@ -67,7 +34,6 @@ pub enum Commands {
         )]
         zero_knowledge: bool,
     },
-
     #[clap(about = "compile your dapp")]
     Compile {
         #[clap(
@@ -76,11 +42,7 @@ pub enum Commands {
             long = "interactive"
         )]
         interactive: bool,
-        #[clap(
-            help = "path to the contracts directory",
-            short = 'p',
-            long = "path"
-        )]
+        #[clap(help = "path to the contracts directory", short = 'p', long = "path")]
         path: Option<String>,
         #[clap(
             long = "files",
@@ -99,7 +61,6 @@ pub enum Commands {
             allow_hyphen_values = true
             )]
         build_args: Option<Vec<String>>,
-
         #[clap(
             long = "additional-args",
             short = 'a',
@@ -109,7 +70,6 @@ pub enum Commands {
             )]
         additional_args: Option<Vec<String>>,
     },
-
     #[clap(about = "deploy your dapp")]
     Deploy {
         #[clap(
