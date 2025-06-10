@@ -118,11 +118,12 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 contracts_to_deploy = contract_names;
             }
             let mut deployer_args_hashmap: Option<HashMap<String, Vec<String>>> = None;
+            let parsed_deploy_args: Option<HashMap<String, Vec<String>>> = parse_deploy_args(
+                deploy_args,
+                contracts_to_deploy.as_ref().unwrap_or(&Vec::new()).clone(),
+            );
             if contracts_to_deploy.is_some() {
-                deployer_args_hashmap = Some(parse_deploy_args(
-                    deploy_args,
-                    contracts_to_deploy.as_ref().unwrap_or(&Vec::new()).clone(),
-                )?);
+                deployer_args_hashmap = parsed_deploy_args;
             } else {
                 deployer_args_hashmap = None;
             }
@@ -223,7 +224,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 fn parse_deploy_args(
     deploy_args: Option<Vec<String>>,
     contracts_to_deploy: Vec<String>,
-) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
+) -> Option<HashMap<String, Vec<String>>> {
     if deploy_args.is_some() && contracts_to_deploy.len() > 0 {
         let mut contract_map: HashMap<String, Vec<String>> = HashMap::new();
         let mut arg_names: Vec<String> = Vec::new();
@@ -244,7 +245,7 @@ fn parse_deploy_args(
                 sub_vector.push(entry.clone());
                 continue;
             } else {
-                return Err("Contract name not found".into());
+                return None;
             }
         }
 
@@ -254,9 +255,9 @@ fn parse_deploy_args(
         for (index, arg_name) in arg_names.iter().enumerate() {
             contract_map.insert(arg_name.clone(), current_args[index].clone());
         }
-        return Ok(contract_map);
+        return Some(contract_map);
     } else {
-        return Err("No deploy args provided".into());
+        return None;
     }
 }
 
@@ -276,9 +277,9 @@ mod tests {
         ]);
         let contracts_to_deploy: Vec<String> =
             vec!["contract1".to_string(), "contract2".to_string()];
-        let result: Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> =
+        let result: Option<HashMap<String, Vec<String>>> =
             parse_deploy_args(deploy_args, contracts_to_deploy);
-        assert!(result.is_ok());
+        assert!(result.is_some());
         let contract_map: HashMap<String, Vec<String>> = result.unwrap();
         assert_eq!(contract_map.len(), 2);
         assert_eq!(contract_map.get("contract1").unwrap().len(), 2);

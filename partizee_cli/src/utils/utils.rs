@@ -6,23 +6,7 @@ use std::{
     fs,
     path::PathBuf,
     process::{Command, Output},
-    sync::LazyLock,
 };
-
-pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
-    vec![
-        ".js", ".jsx", ".ts", ".tsx", ".json", ".ico", ".png", ".svg", ".jpg", ".jpeg", ".gif",
-        ".webp", ".bmp", ".tiff", ".tif", ".ico", ".cur", ".ani", ".avif", ".heic", ".heif",
-        ".webp", ".html", ".css", ".scss", ".sass", ".less", ".styl", ".stylus", ".pcss",
-        ".postcss",
-    ]
-});
-
-pub static TERA_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
-    vec![
-        ".template"
-    ]
-});
 
 /// print output to console
 /// return json output
