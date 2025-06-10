@@ -4,6 +4,7 @@ use std::error::Error;
 use std::{
     fs,
     path::{Path, PathBuf},
+    env,
 };
 use tera::{Context, Tera};
 use walkdir::WalkDir;
@@ -25,7 +26,7 @@ pub struct ProjectConfig {
 impl NewProject {
     pub fn new(config: ProjectConfig) -> Result<NewProject, Box<dyn Error>> {
         // install project in current directory
-        let project_root = find_workspace_root().unwrap_or_else(|| {
+        let project_root = env::current_dir().unwrap_or_else(|_| {
             panic!("Failed to find workspace root");
         });
 
