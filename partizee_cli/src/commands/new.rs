@@ -31,7 +31,7 @@ impl NewProject {
     pub fn new(config: ProjectConfig) -> Result<NewProject, Box<dyn Error>> {
         // install project in current directory
         let project_root = env::current_dir().unwrap_or_else(|_| {
-            panic!("Failed to find workspace root");
+            panic!("Failed to find project root");
         });
 
         // if output_dir is provided, use it, otherwise use the project name
@@ -68,13 +68,12 @@ impl NewProject {
     /// @param template_name: the name of the template to copy "README.md"
     pub fn copy_template(
         &self,
-        src: Option<&Path>,
-        dst: Option<&Path>,
+        src: &Path,
+        dst: &Path,
         template_name: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // if dst arg is provided, use it, otherwise use the default path
-        let destination_path = dst.unwrap_or_else(|| &self.project_root);
-        let source_path = PathBuf::from(src.unwrap_or_else(|| panic!("No source path provided")));
+        let destination_path = dst;
+        let template_content = Templates::get(src.to_str().unwrap_or_else(|| panic!("Invalid UTF-8 in file name"))).ok_or_else(|| "Template not found")?;
         // clean up the template name to remove the .template extension if exists
         let clean_template_name: String = template_name.replace(".template", "");
         // check if the file is a copiable extension otherwise use tera
@@ -89,7 +88,7 @@ impl NewProject {
                     let mut context: Context = Context::new();
                     context.insert("project_name", &self.dapp_name);
         
-                    let base_template = fs::read_to_string(source_path.join(&template_name))?;
+                    let base_template = std::str::from_utf8(template_content.data.as_ref())?;
         
                     let rendered = tera.render_str(&base_template, &context)?;
         
@@ -97,9 +96,9 @@ impl NewProject {
                     fs::write(destination_path.join(&clean_template_name), rendered)?;
         } else {
                 // copy with fs
-                fs::copy(
-                    source_path.join(&template_name),
+                fs::write(
                     destination_path.join(&clean_template_name),
+                    template_content.data.as_ref(),
                 )?;
         }
 
@@ -109,19 +108,25 @@ impl NewProject {
     pub fn copy_all_files(&self) -> Result<(), Box<dyn std::error::Error>> {
         for entry in Templates::iter()
         {
-            let rel_path = entry.as_ref().strip_prefix(&entry.as_ref()).unwrap();
+            let rel_path = entry.as_ref();
             let dest_path = self.output_dir.join(rel_path);
-
             // Ensure parent directories exist
             if let Some(parent) = dest_path.parent() {
                 fs::create_dir_all(parent)?;
             }
 
+            if rel_path.ends_with("/") {
+                continue;
+            }
+
             // Use your template logic if needed, or just copy the file
             self.copy_template(
-                Some(PathBuf::from(entry.as_ref()).parent().unwrap()),
-                Some(dest_path.parent().unwrap()),
-                entry.as_ref(),
+                Path::new(rel_path),
+                &dest_path.parent().unwrap(),
+                Path::new(rel_path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or("Invalid UTF-8 in file name")?,
             )?;
         }
         Ok(())
