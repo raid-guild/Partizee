@@ -20,7 +20,7 @@ pub static COPIABLE_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
 
 pub static TERA_EXTENSIONS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     vec![
-        ".md", ".template", ".toml"
+        ".template"
     ]
 });
 

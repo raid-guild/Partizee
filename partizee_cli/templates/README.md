@@ -1,5 +1,3 @@
-# {{project_name}}
-
 This project was bootstrapped with [Partizee](https://github.com/raid-guild/partizee).
 
 ## Project Structure

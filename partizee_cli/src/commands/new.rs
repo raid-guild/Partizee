@@ -74,34 +74,15 @@ impl NewProject {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let destination_path = dst;
         let template_content = Templates::get(src.to_str().unwrap_or_else(|| panic!("Invalid UTF-8 in file name"))).ok_or_else(|| "Template not found")?;
+        
         // clean up the template name to remove the .template extension if exists
         let clean_template_name: String = template_name.replace(".template", "");
-        // check if the file is a copiable extension otherwise use tera
-        if TERA_EXTENSIONS
-            .iter()
-            .any(|ext| clean_template_name.ends_with(ext))
-        {
-                    // copy with tera
-                    let mut tera: Tera = Tera::default();
-                    tera.autoescape_on(vec![]); // Disable autoescaping for all files
-
-                    // Process template
-                    let mut context: Context = Context::new();
-                    context.insert("project_name", &self.dapp_name);
         
-                    let base_template = std::str::from_utf8(template_content.data.as_ref())?;
-        
-                    let rendered = tera.render_str(&base_template, &context)?;
-        
-                    // write the rendered template to the destination path
-                    fs::write(destination_path.join(&clean_template_name), rendered)?;
-        } else {
-                // copy with fs
-                fs::write(
-                    destination_path.join(&clean_template_name),
-                    template_content.data.as_ref(),
-                )?;
-        }
+        // copy file directly
+        fs::write(
+            destination_path.join(&clean_template_name),
+            template_content.data.as_ref(),
+        )?;
 
         Ok(())
     }
