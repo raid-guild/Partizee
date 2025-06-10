@@ -1,4 +1,5 @@
-use crate::utils::fs_nav::{find_dir, find_workspace_root};
+use crate::utils::fs_nav::{find_dir};
+
 use crate::utils::utils::TERA_EXTENSIONS;
 use std::error::Error;
 use std::{
@@ -8,20 +9,23 @@ use std::{
 };
 use tera::{Context, Tera};
 use walkdir::WalkDir;
+use rust_embed::Embed;
 
-#[derive(Debug)]
 pub struct NewProject {
     pub dapp_name: String,
     pub output_dir: PathBuf,
     // the root of the project
     pub project_root: PathBuf,
-    pub templates_dir: PathBuf,
 }
 
 pub struct ProjectConfig {
     pub name: String,
     pub output_dir: Option<String>,
 }
+
+#[derive(Embed)]
+#[folder = "templates"]
+struct Templates;
 
 impl NewProject {
     pub fn new(config: ProjectConfig) -> Result<NewProject, Box<dyn Error>> {
@@ -40,28 +44,18 @@ impl NewProject {
             dapp_name: config.name,
             output_dir,
             project_root: project_root.clone(),
-            templates_dir: find_dir(&project_root, "templates").unwrap_or_else(|| {
-                panic!("Failed to find templates directory");
-            }),
         })
     }
 
     pub fn create_project_directory(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let templates_dir = self.templates_dir.clone();
-        for entry in WalkDir::new(&templates_dir)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| e.file_type().is_dir())
+        for entry in Templates::iter()
         {
-            // Get the relative path from templates_dir
-            let rel_path = entry.path().strip_prefix(&templates_dir)?;
-            // Skip the root itself
-            if rel_path.as_os_str().is_empty() {
-                continue;
-            }
+            let dir_path = entry.as_ref();
+            if PathBuf::from(dir_path).is_dir() {
             // Create the corresponding directory in the new project root
-            let new_dir = self.output_dir.join(rel_path);
+            let new_dir = self.output_dir.join(dir_path);
             fs::create_dir_all(&new_dir)?;
+            }
         }
 
         self.print_project_structure();
@@ -78,11 +72,9 @@ impl NewProject {
         dst: Option<&Path>,
         template_name: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // if src arg is provided, use it, otherwise use the default path
-        let source_path = src.unwrap_or_else(|| &self.templates_dir);
         // if dst arg is provided, use it, otherwise use the default path
         let destination_path = dst.unwrap_or_else(|| &self.project_root);
-
+        let source_path = PathBuf::from(src.unwrap_or_else(|| panic!("No source path provided")));
         // clean up the template name to remove the .template extension if exists
         let clean_template_name: String = template_name.replace(".template", "");
         // check if the file is a copiable extension otherwise use tera
@@ -115,13 +107,9 @@ impl NewProject {
     }
 
     pub fn copy_all_files(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let templates_dir: PathBuf = self.templates_dir.clone();
-        for entry in WalkDir::new(&templates_dir)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| e.file_type().is_file())
+        for entry in Templates::iter()
         {
-            let rel_path = entry.path().strip_prefix(&templates_dir)?;
+            let rel_path = entry.as_ref().strip_prefix(&entry.as_ref()).unwrap();
             let dest_path = self.output_dir.join(rel_path);
 
             // Ensure parent directories exist
@@ -131,12 +119,9 @@ impl NewProject {
 
             // Use your template logic if needed, or just copy the file
             self.copy_template(
-                Some(entry.path().parent().unwrap()),
+                Some(PathBuf::from(entry.as_ref()).parent().unwrap()),
                 Some(dest_path.parent().unwrap()),
-                entry
-                    .file_name()
-                    .to_str()
-                    .ok_or("Invalid UTF-8 in file name")?,
+                entry.as_ref(),
             )?;
         }
         Ok(())

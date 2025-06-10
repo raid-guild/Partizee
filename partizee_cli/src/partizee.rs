@@ -15,6 +15,7 @@ use crate::utils::menus::{
     compile_menu, create_new_pbc_account_menu, deploy_menu, new_project_menu, select_pk_menu,
 };
 
+
 #[allow(unused_variables, unused_assignments)]
 pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
     let partizee_cli: Arguments = Arguments::parse();
