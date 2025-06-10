@@ -6,9 +6,8 @@ use std::{
     fs,
     path::{Path, PathBuf},
     env,
+    process::Command,
 };
-use tera::{Context, Tera};
-use walkdir::WalkDir;
 use rust_embed::Embed;
 
 pub struct NewProject {
@@ -123,6 +122,18 @@ impl NewProject {
     pub fn create_new_project(&self) -> Result<(), Box<dyn std::error::Error>> {
         self.create_project_directory()?;
         self.copy_all_files()?;
+
+        // Initialize git repository
+        let output = Command::new("git")
+            .current_dir(&self.output_dir)
+            .arg("init")
+            .output()?;
+
+        if !output.status.success() {
+            eprintln!("Warning: Failed to initialize git repository: {}", 
+                String::from_utf8_lossy(&output.stderr));
+        }
+        
         Ok(())
     }
 

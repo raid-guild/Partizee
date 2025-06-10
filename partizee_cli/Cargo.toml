@@ -14,7 +14,6 @@ path = "src/main.rs"
 cargo-partisia-contract = { workspace = true }
 clap = { workspace = true }
 cliclack = { workspace = true }
-tera = { workspace = true }
 tokio = { workspace = true }
 tokio-test = { workspace = true, optional = true }
 pbc_contract_common = { workspace = true }
