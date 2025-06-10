@@ -24,7 +24,7 @@ pub struct ProjectConfig {
 }
 
 #[derive(Embed)]
-#[folder = "templates"]
+#[folder = "templates/"]
 struct Templates;
 
 impl NewProject {
@@ -83,6 +83,7 @@ impl NewProject {
         {
                     // copy with tera
                     let mut tera: Tera = Tera::default();
+                    tera.autoescape_on(vec![]); // Disable autoescaping for all files
 
                     // Process template
                     let mut context: Context = Context::new();
@@ -106,27 +107,33 @@ impl NewProject {
     }
 
     pub fn copy_all_files(&self) -> Result<(), Box<dyn std::error::Error>> {
-        for entry in Templates::iter()
-        {
-            let rel_path = entry.as_ref();
-            let dest_path = self.output_dir.join(rel_path);
-            // Ensure parent directories exist
+        for entry in Templates::iter() {
+            let path = entry.as_ref();
+            
+            let dest_path = self.output_dir.join(path);
+            
+            // Skip directories, just ensure they exist
+            if path.ends_with('/') {
+                fs::create_dir_all(&dest_path)?;
+                continue;
+            }
+
+            // Ensure parent directory exists
             if let Some(parent) = dest_path.parent() {
                 fs::create_dir_all(parent)?;
             }
 
-            if rel_path.ends_with("/") {
-                continue;
-            }
-
-            // Use your template logic if needed, or just copy the file
-            self.copy_template(
-                Path::new(rel_path),
-                &dest_path.parent().unwrap(),
-                Path::new(rel_path)
+            // Get the file name for the template
+            let file_name = Path::new(path)
                 .file_name()
                 .and_then(|n| n.to_str())
-                .ok_or("Invalid UTF-8 in file name")?,
+                .ok_or_else(|| format!("Invalid file name: {}", path))?;
+            
+            // Copy the file using template processing
+            self.copy_template(
+                Path::new(path),
+                &dest_path.parent().unwrap(),
+                file_name,
             )?;
         }
         Ok(())
