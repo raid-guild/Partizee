@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::pbc_commands::pbc_create_new_account;
+use crate::utils::utils::assert_partizee_project;
 
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
@@ -19,7 +20,6 @@ use crate::utils::menus::{
 #[allow(unused_variables, unused_assignments)]
 pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
     let partizee_cli: Arguments = Arguments::parse();
-
     match partizee_cli.commands {
         Commands::New {
             interactive,
@@ -52,6 +52,8 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             build_args,
             additional_args,
         } => {
+            assert_partizee_project()?;
+
             // create a new ProjectCompiler with the provided args
             let compile_args: ProjectCompiler = ProjectCompiler {
                 path: path.clone(),
@@ -77,6 +79,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             deploy_args,
             pk_path,
         } => {
+            assert_partizee_project()?;
             let mut use_interactive: bool = interactive;
             // if all args are empty open interactive menu
             if !interactive
@@ -95,14 +98,16 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 // find first pk file in the project root
                 let pk_files: Vec<PathBuf> = get_pk_files();
                 if pk_files.len() == 0 {
+                    // if no pk files found, create a new pbc account
                     let create_pbc_account_network: String = create_new_pbc_account_menu()?;
 
                     pbc_create_new_account(&create_pbc_account_network)?;
+
                     let pk_files: Vec<PathBuf> = get_pk_files();
                     if pk_files.len() > 0 {
                         path_to_pk = Some(pk_files[0].clone());
                     } else {
-                        return Err("Failed to create new account".into());
+                        return Err("Failed to create new account, please run `cargo pbc wallet create` and then try again".into());
                     }
                 } else {
                     path_to_pk = Some(pk_files[0].clone());
@@ -113,10 +118,11 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             // get list of all contract names
 
             if contract_names.is_none() {
-                contracts_to_deploy = Some(get_all_contract_names()?);
+                contracts_to_deploy = get_all_contract_names();
             } else {
                 contracts_to_deploy = contract_names;
             }
+
             let mut deployer_args_hashmap: Option<HashMap<String, Vec<String>>> = None;
             let parsed_deploy_args: Option<HashMap<String, Vec<String>>> = parse_deploy_args(
                 deploy_args,

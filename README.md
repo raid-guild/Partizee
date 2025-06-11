@@ -4,9 +4,9 @@ Partizee is a CLI tool for creating and deploying full-stack Partisia dApps. It 
 
 ## Features
 - Generate a template projects
-- Create and manage Partisia blockchain accounts and wallets
+- Create and manage Partisia blockchain profiles and wallets
 - Deploy and manage full-stack dApps
-- Interactive menus for account selection and creation
+- Interactive menus for profile selection and creation
 
 ## Installation
 
@@ -78,7 +78,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
     - `-i`, `--interactive` — Use interactive menu to compile.
     - `-f`, `--files <FILE>` — Specify specific files to compile.
     - `-b`, `--build-args <ARGS>` — Additional arguments passed to `cargo build`.
-    - `-a`, `--additional-args <ARGS>` — Additional arguments for the compile CLI command as specified in the cargo-partisia-contract readme.
+    - `-a`, `--additional-args <ARGS>` — Additional arguments for the compile CLI command.
 
 ### Deployment
 
@@ -93,35 +93,49 @@ Partizee provides several commands for managing your Partisia dApp workflow:
 
 ### Profile Management
 
-- `partizee account create [OPTIONS]`
-  - Create a new blockchain account.
-  - Options (all can be combined as needed):
-    - `-i`, `--interactive` — Use interactive menu to create account.
-    - `-n`, `--name <NAME>` — Name of the account.
-    - `-n`, `--network <NETWORK>` — Network to create account on.
-    - `-p`, `--path <PATH>` — Path to a .pk file to use for account
-    - `-a`, `--address <ADDRESS>` — Profile address (optional if path to a valid pk file or a valid private key is provided)
-    - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
+Partizee uses a profile-based system for managing blockchain identities. Each profile contains:
+- Network (mainnet/testnet)
+- Address
+- Private key
+- Path to private key file
 
-- `partizee account show [OPTIONS]`
-  - Show account details.
-  - Options (same as above):
-    - `-i`, `--interactive` — Use interactive menu to select and show an account.
-    - `-n`, `--name <NAME>` — Name of the account.
-    - `-n`, `--network <NETWORK>` — Network.
-    - `-p`, `--path <PATH>` — Path to a .pk file to use for account
-    - `-a`, `--address <ADDRESS>` — Profile address (optional if path to a valid pk file or a valid private key is provided)
-    - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
+Profiles can be created and managed in several ways:
 
-- `partizee account mint-gas [OPTIONS]`
-  - Mint gas for a testnet account.
-  - Options (same as above):
-    - `-i`, `--interactive` — Use interactive menu to select the account.
-    - `-n`, `--name <NAME>` — Name of the account.
-    - `-n`, `--network <NETWORK>` — Network.
-    - `-p`, `--path <PATH>` — Path to a .pk file to use for account
-    - `-a`, `--address <ADDRESS>` — Profile address (optional if path to a valid pk file or a valid private key is provided)
-    - `-k', '--private-key <PRIVATE_KEY>` — private-key to be used
+1. **Default Profile**: If no profile exists, Partizee will automatically:
+   - Create a new wallet if none exists
+   - Create a new account on testnet
+   - Store the private key file in your workspace
+
+2. **Profile Creation Options**:
+   - From an existing private key file
+   - From an address and private key pair
+   - From just a private key (address will be derived)
+   - From just an address (will search for matching private key file)
+   - Interactively through the menu system
+
+3. **Profile Operations**:
+   - Show account details and balance
+   - Mint gas (testnet only)
+   - Update private key
+   - Update network
+   - Update address
+
+4. **Profile Configuration**:
+   You can specify profile details through:
+   - Command line options
+   - Configuration files
+   - Interactive menus
+   - Environment variables
+
+### Example Usage
+
+```sh
+# Create a new project
+partizee new my-dapp
+
+# Deploy using a specific profile
+partizee deploy --chain testnet --deploy-args 00d277aa1bf5702ab9fc690b04bd68b5a981095530
+```
 
 ---
 
@@ -132,12 +146,6 @@ partizee --help
 ```
 
 You can copy and paste this into your README, replacing or expanding the "Common Commands" section. This gives users a clear overview of what each command does and what options are available.
-
-### Example
-
-```sh
-cargo partizee account create --net=testnet
-```
 
 ## Configuration
 

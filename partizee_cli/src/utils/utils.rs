@@ -1,12 +1,13 @@
-use crate::commands::user_profile::Profile;
+use crate::{commands::user_profile::Profile, utils::fs_nav::id_pbc_path};
 use crate::utils::fs_nav::find_workspace_root;
-use rand::Rng;
+use tempfile::{Builder};
 use serde::de::DeserializeOwned;
 use std::{
     fs,
     path::PathBuf,
     process::{Command, Output},
 };
+use std::os::unix::fs::PermissionsExt;
 
 /// print output to console
 /// return json output
@@ -22,6 +23,15 @@ pub fn print_output<T: DeserializeOwned>(
         Err(e) => Err(Box::new(e)),
     }
 }
+
+pub fn assert_partizee_project() -> Result<(), Box<dyn std::error::Error>> {
+    let partizee_project: bool = find_workspace_root().is_some();
+    if !partizee_project {
+        return Err("Current directory is not a partizee project".into());
+    }
+    Ok(())
+}
+
 
 /// print error to console
 /// return error
@@ -129,40 +139,34 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     if private_key.len() != 64 {
         return Err("get_address_from_pk: Invalid private key".into());
     }
-    let root_path: PathBuf =
-        find_workspace_root().expect("get_address_from_pk: Failed to find workspace root");
 
     // write temp file with private key
-    // create a random string for the temp file name
-    let temp_file_name: String = format!("temp_{}.pk", rand::thread_rng().gen_range(1..=1000000));
-    let temp_file: PathBuf = root_path.join(temp_file_name);
+    let all_read_write = std::fs::Permissions::from_mode(0o666);
+    let temp_pk = Builder::new().permissions(all_read_write).tempfile().unwrap();
+    std::fs::write(&temp_pk.path(), private_key).unwrap();
 
-    let write_result = fs::write(&temp_file, private_key);
-
-    if write_result.is_err() {
-        return Err("get_address_from_pk: Failed to write private key to temp file".into());
-    }
-
-    let output: Result<Output, std::io::Error> = Command::new("cargo")
+    let mut command = Command::new("cargo");
+    command
         .arg("pbc")
         .arg("account")
         .arg("address")
         .arg(
-            temp_file
-                .as_path()
+            temp_pk.path().canonicalize().unwrap()
                 .to_str()
                 .ok_or("Invalid UTF-8 in path")?,
-        )
-        .output();
-
-    // remove temp file
-    let _ = fs::remove_file(&temp_file);
-
+        );
+        
+    let output = command.output();
+    std::fs::remove_file(temp_pk.path()).unwrap();
+    if !output.as_ref().unwrap().status.success() {
+        let stderr = String::from_utf8_lossy(&output.as_ref().unwrap().stderr);
+        return Err(format!("Command failed: {}", stderr).into());
+    }
+    
     if output.is_ok() {
         // get address from command output
         let mut address: String =
             String::from_utf8_lossy(&output.as_ref().unwrap().stdout).to_string();
-
         // trim non alphanumeric characters
         address = address.chars().filter(|c| c.is_alphanumeric()).collect();
         // validate address length
@@ -173,6 +177,7 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     } else {
         return print_error(&output.unwrap());
     }
+    
 }
 
 pub fn address_is_valid(
@@ -184,15 +189,13 @@ pub fn address_is_valid(
         return Ok(false);
     }
 
-    let derived_address = if let Ok(addr) = get_address_from_pk(&private_key) {
-        addr
-    } else {
-        return Err(format!(
-            "address_is_valid: Failed to get address from private key: {}",
-            private_key
-        )
-        .into());
-    };
+    // validate private key length
+    if private_key.len() != 64 {
+        return Ok(false);
+    }
+
+    let derived_address = get_address_from_pk(&private_key).unwrap_or("".to_string());
+
 
     // validate address length
     if derived_address.len() != 42 {
@@ -230,9 +233,30 @@ pub fn trim_public_key(std_output: &Output) -> String {
     public_key
 }
 
+// Add this at module level, before the tests
+#[cfg(test)]
+pub fn setup_test_environment() -> (tempfile::TempDir, PathBuf, PathBuf) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    // create a mock pk file
+    let pk_file = temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk");
+    fs::write(pk_file, "9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0").expect("Failed to write mock private key file");
+    // create a partizee project in the temp directory
+    let partizee_project = temp_dir.path().join("rust/contracts");
+    let frontend_project = temp_dir.path().join("frontend");
+    fs::create_dir_all(&partizee_project).unwrap();
+    fs::create_dir_all(&frontend_project).unwrap();
+    let cargo_toml = temp_dir.path().join("Cargo.toml");
+    fs::write(cargo_toml, "[workspace]\n[package]").unwrap();
+    let temp_path = temp_dir.path().to_path_buf();
+    let original_dir = std::env::current_dir().unwrap();
+    (temp_dir, temp_path, original_dir)  // Return temp_dir so it stays alive
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
 
     #[test]
     fn test_validate_address() {
@@ -251,7 +275,7 @@ mod tests {
             get_address_from_pk("9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0");
         println!("result: {:?}", result);
         assert_eq!(
-            result.unwrap(),
+            result.unwrap_or("".to_string()),
             "00d277aa1bf5702ab9fc690b04bd68b5a981095530",
             "address is not correct"
         );

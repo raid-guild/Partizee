@@ -58,12 +58,27 @@ impl Default for DeploymentWithProfile {
         let account: Profile = Profile::default();
         let mut deploy_project: DeployConfigs = DeployConfigs::default();
         deploy_project.path_to_pk = Some(account.path_to_pk.clone());
+        let mut all_contract_names: Option<Vec<String>> = get_all_contract_names();
+        if all_contract_names.is_none() {
+            // compile contracts
+            let project_compiler: ProjectCompiler = ProjectCompiler {
+                files: None,
+                path: None,
+                build_args: None,
+                additional_args: None,
+            };
+            project_compiler.compile_contracts().unwrap_or_else(|e| {
+                panic!("Failed to compile contracts: {}", e);
+            });
+            all_contract_names = get_all_contract_names();
+        }
+        
         let deployer: Deployer = Deployer {
             network: deploy_project
                 .network
                 .clone()
                 .unwrap_or(DEFAULT_NETWORK.to_string()),
-            contract_names: get_all_contract_names().expect("No contracts found"),
+            contract_names: all_contract_names.unwrap_or(Vec::new()),
             deployer_args: deploy_project
                 .deployer_args
                 .clone()
@@ -400,12 +415,17 @@ fn save_deployments(
 mod tests {
     use super::*;
     use crate::utils::fs_nav::get_pk_files;
+    use crate::utils::utils::setup_test_environment;
 
+    fn cleanup(original_dir: PathBuf) {
+        std::env::set_current_dir(original_dir).unwrap();
+    }
     #[test]
     fn test_create_default_deployment_with_account() {
+        let (temp_dir, temp_path, original_dir) = setup_test_environment();
+        std::env::set_current_dir(&temp_path).unwrap();
+        let path_to_pk: PathBuf = temp_path.join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk");    
         // get pk files
-        let pk_files: Vec<PathBuf> = get_pk_files();
-        if pk_files.len() > 0 {
             // create new project
             let deployment_with_account: DeploymentWithProfile = DeploymentWithProfile::default();
             assert!(deployment_with_account.deploy_configs.path_to_pk.is_file());
@@ -430,13 +450,12 @@ mod tests {
                     .unwrap()
                     .to_str()
                     .unwrap(),
-                format!("{}.pk", deployment_with_account.account.address)
+                path_to_pk.file_name().unwrap().to_str().unwrap()
             );
             assert_eq!(deployment_with_account.account.address.len(), 42);
             assert_eq!(deployment_with_account.account.private_key.len(), 64);
             assert_eq!(deployment_with_account.account.network, "testnet");
-        } else {
-            println!("must create a new account");
-        }
+            assert_eq!(temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk").exists(), true);
+            cleanup(original_dir);
     }
 }

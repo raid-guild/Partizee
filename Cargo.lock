@@ -1598,6 +1598,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "tokio",
  "tokio-test",
  "unicode-normalization",

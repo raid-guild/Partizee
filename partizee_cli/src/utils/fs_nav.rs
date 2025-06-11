@@ -1,29 +1,74 @@
 use std::collections::HashSet;
-use std::env;
+use std::{env};
 use std::path::PathBuf;
 use walkdir::WalkDir;
+use std::sync::{mpsc, Arc};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 
-/// note: this function is used to find the root of the workspace, it will search up to 3 levels of directories for a Cargo.toml file with the workspace flag
+// find the workspace root directory
+// uses multithreading to speed up the process of searching nearby directories for a workspace root
 pub fn find_workspace_root() -> Option<PathBuf> {
     let mut current_folder: PathBuf = env::current_dir().ok()?;
     for _ in 0..3 {
-        for entry in WalkDir::new(&current_folder).max_depth(5) {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    let files = path.read_dir().ok()?.flatten();
-                    for file in files {
-                        if file.path().file_name()?.to_str()? == "Cargo.toml" {
-                            let contents = std::fs::read_to_string(file.path()).ok()?;
-                            if contents.contains("[workspace]") {
-                                return Some(path.to_path_buf());
+        let entries: Vec<_> = WalkDir::new(&current_folder)
+            .max_depth(5)
+            .into_iter()
+            .filter_map(Result::ok)
+            .collect();
+
+        let (tx, rx) = mpsc::channel();
+        let chunk_size = (entries.len() / 4).max(1);
+        let found = Arc::new(AtomicBool::new(false));
+        
+        entries.chunks(chunk_size)
+            .map(|chunk| {
+                let tx = tx.clone();
+                let chunk = chunk.to_vec();
+                let current_folder = current_folder.clone();
+                let found = Arc::clone(&found);
+                thread::spawn(move || {
+                    for entry in chunk {
+                        if found.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        
+                        let path = entry.path();
+                        if !path.is_dir() {
+                            continue;
+                        }
+                        
+                        if let Some(files) = path.read_dir().ok() {
+                            for file in files.flatten() {
+                                if let Some(fname) = file.path().file_name() {
+                                    if fname.to_str() == Some("Cargo.toml") {
+                                        if let Ok(contents) = std::fs::read_to_string(file.path()) {
+                                            if contents.contains("[workspace]") && 
+                                               current_folder.join("rust/contracts").is_dir() && 
+                                               current_folder.join("frontend/").is_dir() {
+                                                found.store(true, Ordering::Relaxed);
+                                                tx.send(Some(path.to_path_buf())).ok();
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
+                    tx.send(None).ok();
+                })
+            })
+            .for_each(|handle| { handle.join().ok(); });
+
+        drop(tx);
+
+        for result in rx {
+            if let Some(path) = result {
+                return Some(path);
             }
         }
-        // Move up one directory
+
         if let Some(parent) = current_folder.parent() {
             current_folder = parent.to_path_buf();
         } else {
@@ -115,17 +160,17 @@ pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf>
     matches
 }
 // to be used during deployment to get all contract names
-pub fn get_all_contract_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn get_all_contract_names() -> Option<Vec<String>> {
     let path: Option<PathBuf> = find_dir(
         &find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap())),
         "wasm32-unknown-unknown/release",
     );
     if path.is_none() {
-        return Err("No contracts found, please compile contracts first".into());
+        return None;
     } else {
         let path: PathBuf = path.unwrap();
         if !path.is_dir() {
-            return Err("No contracts found, please compile contracts first".into());
+            return None;
         }
         // all
         let pbc_names: Vec<String> = find_files_with_extension(&path, "pbc")
@@ -156,12 +201,12 @@ pub fn get_all_contract_names() -> Result<Vec<String>, Box<dyn std::error::Error
             })
             .collect();
         let unique_contract_names: HashSet<String> = contract_names.into_iter().collect();
-        Ok(unique_contract_names.into_iter().collect())
+        Some(unique_contract_names.into_iter().collect())
     }
 }
 
 pub fn get_pk_files() -> Vec<PathBuf> {
-    let root_path: PathBuf = find_workspace_root().unwrap();
+    let root_path: PathBuf = find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap()));
     let mut pk_files_vec: Vec<PathBuf> = find_files_with_extension(&root_path, "pk");
     if pk_files_vec.is_empty() {
         let mut depth = 0;
@@ -209,13 +254,36 @@ pub fn id_pbc_path() -> Option<PathBuf> {
     }
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
+    use crate::utils::utils::setup_test_environment;
 
+    fn cleanup(original_dir: PathBuf) {
+        std::env::set_current_dir(original_dir).unwrap();
+    }
     #[test]
     fn test_find_workspace_root() {
-        let workspace_root = find_workspace_root();
-        assert_eq!(workspace_root.unwrap().join("Cargo.toml").exists(), true);
+        let (temp_dir, temp_path, original_dir) = setup_test_environment();
+        // set the current directory to mock project
+        std::env::set_current_dir(temp_path.join("rust/contracts")).unwrap();
+
+        let iterations = 1000;
+        let start = Instant::now();
+        
+        for _ in 0..iterations {
+            let _ = find_workspace_root();
+        }
+        
+        let duration = start.elapsed();
+        let avg_duration = duration.as_micros() as f64 / iterations as f64;
+        
+        println!("Average time for find_workspace_root: {:.2} microseconds", avg_duration);
+        println!("Total time for {} iterations: {:.2?}", iterations, duration);
+        assert_eq!(find_workspace_root().unwrap().exists(), true, "root path does not exist");
+        cleanup(original_dir);
     }
 }

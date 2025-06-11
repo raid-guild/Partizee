@@ -1,6 +1,5 @@
 use crate::utils::fs_nav::{find_dir};
 
-use crate::utils::utils::TERA_EXTENSIONS;
 use std::error::Error;
 use std::{
     fs,

@@ -3,7 +3,8 @@ use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
 use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::fs_nav::get_pk_files;
-use cliclack::{confirm, input, intro, outro, select, Input};
+use crate::utils::utils::assert_partizee_project;
+use cliclack::{confirm, input, intro, outro, select};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -57,6 +58,7 @@ pub fn new_project_menu(
 pub fn compile_menu(
     config: ProjectCompiler,
 ) -> Result<ProjectCompiler, Box<dyn std::error::Error>> {
+    assert_partizee_project()?;
     let mut build_args_vec: Vec<String> = Vec::new();
     let mut additional_args_vec: Vec<String> = Vec::new();
     let mut files_vec: Vec<String> = Vec::new();
@@ -281,12 +283,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
                     }
                 })
                 .interact()?;
-
-                // get deployer args for the contract
-                let deployer_args: Vec<String> = get_deployer_args(&custom_name).unwrap();
-                deployer_args_mapping.insert(custom_name.clone(), deployer_args);
                 custom_names.as_mut().unwrap().push(custom_name);
-
                 let another: bool = confirm("Enter another contract name? (y/n)")
                     .initial_value(false)
                     .interact()?;
@@ -299,6 +296,12 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
         }
     } else {
         custom_names = config.contract_names;
+    }
+
+    // get deployer args for each contract
+    for name in custom_names.as_mut().unwrap() {
+        let deployer_args: Vec<String> = get_deployer_args(name).unwrap();
+        deployer_args_mapping.insert(name.clone(), deployer_args);
     }
 
     if config.path_to_pk.is_some() {
