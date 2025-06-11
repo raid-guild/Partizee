@@ -461,7 +461,7 @@ pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error
     intro(DELIM)?;
 
     let create_pbc_account: bool =
-        confirm("Would you like to create a new account? (yes will overwrite the existing Wallet)")
+        confirm("Would you like to create a new account? (this will generate a new .pk file in you current directory)")
             .initial_value(false)
             .interact()?;
     if create_pbc_account {
