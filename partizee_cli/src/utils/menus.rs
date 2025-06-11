@@ -473,6 +473,7 @@ pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error
     }
     Err("No account created.".into())
 }
+
 fn input_optional(
     prompt: &str,
     input_type: &str,

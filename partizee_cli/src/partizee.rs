@@ -102,7 +102,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 
             if contract_names.is_none() {
                 contracts_to_deploy = get_all_contract_names();
-                if contracts_to_deploy.is_none() {
+                if contracts_to_deploy.is_none()  || contracts_to_deploy.as_ref().unwrap_or(&Vec::new()).is_empty(){
                     return Err("No contracts found in project, if you have contracts in your project, please compile by running `partizee compile`".into());
                 }
             } else {
@@ -140,14 +140,14 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 let final_pk_path: PathBuf;
                 if config.path_to_pk.is_none() {
-                    let pk_path: PathBuf = select_pk_menu().expect("Failed to select account");
+                    let pk_path: PathBuf = select_pk_menu()?;
                     final_pk_path = pk_path;
                 } else {
                     // if passed in path is a file, use it, otherwise select a new account
                     if config.path_to_pk.as_ref().unwrap().is_file() {   
                         final_pk_path = config.path_to_pk.clone().unwrap();
                     } else {
-                        let pk_path: PathBuf = select_pk_menu().expect("Failed to select account, if none exists, please run `partizee profile create`");
+                        let pk_path: PathBuf = select_pk_menu()?;
                         final_pk_path = pk_path;
                     }
                 }
@@ -220,7 +220,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 shared_args.path.is_none() {
                     interactive = true;
                 }
-                
+
                 if interactive {
                     let pk_path: PathBuf = select_pk_menu().expect("Failed to select account");
                     let account_config: ProfileConfig = ProfileConfig {
