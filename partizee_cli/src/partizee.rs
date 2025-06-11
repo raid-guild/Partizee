@@ -80,6 +80,16 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             pk_path,
         } => {
             assert_partizee_project()?;
+            // check if the project is compiled
+            let project_compiler: ProjectCompiler = ProjectCompiler::new(ProjectCompiler {
+                path: None,
+                files: None,
+                build_args: None,
+                additional_args: None,
+            });
+
+            project_compiler.compile_contracts()?;
+
             let mut use_interactive: bool = interactive;
             // if all args are empty open interactive menu
             if !interactive
@@ -91,28 +101,30 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 use_interactive = true;
             }
             let mut deployer: DeploymentWithProfile;
-
+            
             // format pk_path into a PathBuf
-            let mut path_to_pk: Option<PathBuf> = pk_path.clone().map(|path| PathBuf::from(path));
-            if path_to_pk.is_none() {
-                // find first pk file in the project root
-                let pk_files: Vec<PathBuf> = get_pk_files();
-                if pk_files.len() == 0 {
-                    // if no pk files found, create a new pbc account
-                    let create_pbc_account_network: String = create_new_pbc_account_menu()?;
+            // let mut path_to_pk: Option<PathBuf> = pk_path.clone().map(|path| PathBuf::from(path));
+            // if path_to_pk.is_none() {
+            //     // find first pk file in the project root
+            //     let pk_files: Vec<PathBuf> = get_pk_files();
+            //     if pk_files.len() == 0 {
+            //         // if no pk files found, create a new pbc account
+            //         let create_pbc_account_network: String = create_new_pbc_account_menu()?;
 
-                    pbc_create_new_account(&create_pbc_account_network)?;
+            //         pbc_create_new_account(&create_pbc_account_network)?;
 
-                    let pk_files: Vec<PathBuf> = get_pk_files();
-                    if pk_files.len() > 0 {
-                        path_to_pk = Some(pk_files[0].clone());
-                    } else {
-                        return Err("Failed to create new account, please run `cargo pbc wallet create` and then try again".into());
-                    }
-                } else {
-                    path_to_pk = Some(pk_files[0].clone());
-                }
-            }
+            //         let pk_files: Vec<PathBuf> = get_pk_files();
+                    
+            //         if pk_files.len() > 0 {
+            //             path_to_pk = Some(pk_files[0].clone());
+            //         } else {
+            //             return Err("Failed to create new account, please run `cargo pbc wallet create` and then try again".into());
+            //         }
+            //     } else {
+            //         println!("pk_files FOUND: {:#?}", pk_files);
+            //         path_to_pk = Some(pk_files[0].clone());
+            //     }
+            // }
 
             let mut contracts_to_deploy: Option<Vec<String>> = None;
             // get list of all contract names
@@ -136,16 +148,16 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             // create a new DeployConfigs with the provided args
             let config = DeployConfigs {
                 network: custom_net,
-                contract_names: contracts_to_deploy,
+                contract_names: contracts_to_deploy.unwrap_or(Vec::new()),
                 deployer_args: deployer_args_hashmap,
-                path_to_pk: path_to_pk,
+                path_to_pk: pk_path.clone().map(|path| PathBuf::from(path)),
             };
             // if interactive, get options from interactive menu and pass deployer_args as needed
             if interactive {
                 let menu_args: DeployConfigs = deploy_menu(config)?;
                 let deployer_args: Deployer = Deployer {
                     network: menu_args.network.unwrap_or("".to_string()),
-                    contract_names: menu_args.contract_names.unwrap_or(Vec::new()),
+                    contract_names: menu_args.contract_names,
                     deployer_args: menu_args.deployer_args.unwrap_or(HashMap::new()),
                     path_to_pk: menu_args.path_to_pk.unwrap_or(PathBuf::from("")),
                 };
@@ -154,13 +166,13 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 let deployer_args: Deployer = Deployer {
                     network: config.network.unwrap_or("".to_string()),
-                    contract_names: config.contract_names.unwrap_or(Vec::new()),
+                    contract_names: config.contract_names,
                     deployer_args: config.deployer_args.unwrap_or(HashMap::new()),
                     path_to_pk: config.path_to_pk.unwrap_or(PathBuf::from("")),
                 };
                 deployer = DeploymentWithProfile::new(deployer_args);
             }
-
+            println!("Deploying contracts with args: {:#?}", deployer);
             let result = deployer.deploy_contracts();
             if !result.is_ok() {
                 eprintln!("Contracts deployment failed");

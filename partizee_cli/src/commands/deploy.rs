@@ -14,7 +14,7 @@ use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(Debug, Clone)]
 pub struct DeployConfigs {
-    pub contract_names: Option<Vec<String>>,
+    pub contract_names: Vec<String>,
     pub network: Option<String>,
     pub deployer_args: Option<HashMap<String, Vec<String>>>,
     pub path_to_pk: Option<PathBuf>,
@@ -43,8 +43,9 @@ pub struct DeploymentWithProfile {
 
 impl Default for DeployConfigs {
     fn default() -> Self {
+        let all_contract_names: Option<Vec<String>> = get_all_contract_names();
         Self {
-            contract_names: None,
+            contract_names: all_contract_names.unwrap_or(Vec::new()),
             network: Some(DEFAULT_NETWORK.to_string()),
             deployer_args: None,
             path_to_pk: None,
@@ -58,20 +59,7 @@ impl Default for DeploymentWithProfile {
         let account: Profile = Profile::default();
         let mut deploy_project: DeployConfigs = DeployConfigs::default();
         deploy_project.path_to_pk = Some(account.path_to_pk.clone());
-        let mut all_contract_names: Option<Vec<String>> = get_all_contract_names();
-        if all_contract_names.is_none() {
-            // compile contracts
-            let project_compiler: ProjectCompiler = ProjectCompiler {
-                files: None,
-                path: None,
-                build_args: None,
-                additional_args: None,
-            };
-            project_compiler.compile_contracts().unwrap_or_else(|e| {
-                panic!("Failed to compile contracts: {}", e);
-            });
-            all_contract_names = get_all_contract_names();
-        }
+        let all_contract_names: Option<Vec<String>> = get_all_contract_names();
         
         let deployer: Deployer = Deployer {
             network: deploy_project
@@ -107,17 +95,6 @@ impl DeploymentWithProfile {
     /// deploy all contracts in the contracts directory
     pub fn deploy_contracts(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let project_root: PathBuf = find_workspace_root().unwrap();
-
-        // compile contracts
-        // TODO search for contracts folder and add to path
-        let project_compiler: ProjectCompiler = ProjectCompiler {
-            files: None,
-            path: None,
-            build_args: None,
-            additional_args: None,
-        };
-
-        project_compiler.compile_contracts()?;
 
         let mut names: Vec<String> = self.deploy_configs.contract_names.clone();
 
@@ -414,7 +391,6 @@ fn save_deployments(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::fs_nav::get_pk_files;
     use crate::utils::utils::setup_test_environment;
 
     fn cleanup(original_dir: PathBuf) {

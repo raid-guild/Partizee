@@ -44,8 +44,8 @@ pub fn find_workspace_root() -> Option<PathBuf> {
                                     if fname.to_str() == Some("Cargo.toml") {
                                         if let Ok(contents) = std::fs::read_to_string(file.path()) {
                                             if contents.contains("[workspace]") && 
-                                               current_folder.join("rust/contracts").is_dir() && 
-                                               current_folder.join("frontend/").is_dir() {
+                                            path.join("rust/contracts").is_dir() && 
+                                            path.join("frontend/").is_dir() {
                                                 found.store(true, Ordering::Relaxed);
                                                 tx.send(Some(path.to_path_buf())).ok();
                                                 return;
@@ -62,13 +62,16 @@ pub fn find_workspace_root() -> Option<PathBuf> {
             .for_each(|handle| { handle.join().ok(); });
 
         drop(tx);
-
+        if let Ok(result) = rx.recv() {
+            if let Some(path) = result {
+                return Some(path);
+            }
+        }
         for result in rx {
             if let Some(path) = result {
                 return Some(path);
             }
         }
-
         if let Some(parent) = current_folder.parent() {
             current_folder = parent.to_path_buf();
         } else {
@@ -161,8 +164,9 @@ pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf>
 }
 // to be used during deployment to get all contract names
 pub fn get_all_contract_names() -> Option<Vec<String>> {
+    let root_path: PathBuf = find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap()));
     let path: Option<PathBuf> = find_dir(
-        &find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap())),
+        &root_path,
         "wasm32-unknown-unknown/release",
     );
     if path.is_none() {
@@ -201,6 +205,7 @@ pub fn get_all_contract_names() -> Option<Vec<String>> {
             })
             .collect();
         let unique_contract_names: HashSet<String> = contract_names.into_iter().collect();
+        println!("unique_contract_names: {:?}", unique_contract_names);
         Some(unique_contract_names.into_iter().collect())
     }
 }
@@ -285,5 +290,23 @@ mod tests {
         println!("Total time for {} iterations: {:.2?}", iterations, duration);
         assert_eq!(find_workspace_root().unwrap().exists(), true, "root path does not exist");
         cleanup(original_dir);
+    }
+
+    #[test]
+    fn test_get_all_contract_names() {
+        let (temp_dir, temp_path, original_dir) = setup_test_environment();
+        let _ = std::env::set_current_dir(&temp_path);
+        // create a mock pbc file
+        let pbc_file = temp_path.join("target/wasm32-unknown-unknown/release/counter.pbc");
+        let _ = std::fs::write(&pbc_file, "");
+        // create a mock zkwa file
+        let zkwa_file = temp_path.join("target/wasm32-unknown-unknown/release/counter.zkwa");
+        let _ = std::fs::write(&zkwa_file, "");
+        // create a mock wasm file
+        let contract_names = get_all_contract_names();
+
+        cleanup(original_dir);
+        assert_eq!(contract_names.as_ref().unwrap().len(), 1, "contract_names should be 1");
+        assert_eq!(contract_names.as_ref().unwrap()[0], "counter", "contract_names should be counter");
     }
 }

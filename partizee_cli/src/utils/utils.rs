@@ -243,8 +243,10 @@ pub fn setup_test_environment() -> (tempfile::TempDir, PathBuf, PathBuf) {
     // create a partizee project in the temp directory
     let partizee_project = temp_dir.path().join("rust/contracts");
     let frontend_project = temp_dir.path().join("frontend");
+    let target_dir = temp_dir.path().join("target/wasm32-unknown-unknown/release");
     fs::create_dir_all(&partizee_project).unwrap();
     fs::create_dir_all(&frontend_project).unwrap();
+    fs::create_dir_all(&target_dir).unwrap();
     let cargo_toml = temp_dir.path().join("Cargo.toml");
     fs::write(cargo_toml, "[workspace]\n[package]").unwrap();
     let temp_path = temp_dir.path().to_path_buf();
@@ -255,8 +257,6 @@ pub fn setup_test_environment() -> (tempfile::TempDir, PathBuf, PathBuf) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-
 
     #[test]
     fn test_validate_address() {
