@@ -26,10 +26,16 @@ export PATH="$PATH:$HOME/.local/bin"
 ```
 
 ### Prerequisites
-
-- [Rust](https://www.rust-lang.org/tools/install) (latest stable recommended)
-- [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
-- [Partisia Blockchain CLI tools](https://partisiablockchain.com/)
+   All the below progamrams are required in order to use this application
+- **Rust v 1.86.0 required** [Rustup](https://rustup.rs/) you will have to downgrade to v 1.86.0 or you will get compiler errors
+- after rust is installed run:
+```
+rustup target add wasm32-unknown-unknown
+```
+- **Git required for contract compilation** [Git](https://git-scm.com/downloads)
+- **If on a Windows machine install VS with C++ required** [Visual Studio with C++](https://visualstudio.microsoft.com/downloads/)
+- **OpenJDK 17**: Required for contract compilation and related tooling. [Install OpenJDK 17](https://openjdk.org/install/)
+- **Partisia Contract Cli Tool**[Partisia Blockchain CLI tools](https://partisiablockchain.gitlab.io/documentation/smart-contracts/install-the-smart-contract-compiler.html)
 
 ### External Documentation
 
@@ -44,6 +50,11 @@ Clone the repository and build the CLI:
 git clone https://github.com/yourusername/partizee.git
 cd partizee
 cargo build --release
+```
+
+then run the install script
+```sh
+bash ./install.sh
 ```
 
 The binary will be located in `target/release/partizee`.
@@ -63,7 +74,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
 ### Project Scaffolding
 
 - `partizee new [OPTIONS]`
-  - Scaffold a new project.
+  - Scaffold a new project. If no flags are passed and no data the interactive menu will open automatically.
   - Options:
     - `-i`, `--interactive` — Use interactive menu to create a new dapp.
     - `--name <NAME>` — Dapp name.
@@ -73,7 +84,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
 ### Compilation
 
 - `partizee compile [OPTIONS]`
-  - Compile your dapp.
+  - Compile your dapp. If no flags are passed and no data the interactive menu will open automatically.
   - Options:
     - `-i`, `--interactive` — Use interactive menu to compile.
     - `-f`, `--files <FILE>` — Specify specific files to compile.
@@ -83,49 +94,38 @@ Partizee provides several commands for managing your Partisia dApp workflow:
 ### Deployment
 
 - `partizee deploy [OPTIONS]`
-  - Deploy your dapp.
+  - Deploy your dapp. If no flags are passed and no data the interactive menu will open automatically.
   - Options:
     - `-i`, `--interactive` — Use interactive menu to deploy.
     - `-c`, `--chain <NETWORK>` — Select mainnet or testnet (defaults to testnet if not specified).
     - `-n`, `--names <NAMES>` — Names of the contracts to deploy (can specify multiple).
-    - `-d`, `--deploy-args <ARGS>` — Contract name followed by its arguments, e.g. `--deploy-args MyContract arg1 arg2`.
+    - `-d`, `--deploy-args <CONTRACT NAME> <ARGS>` — Contract name followed by its arguments, e.g. `--deploy-args MyContract arg1 arg2`.  for multiple contract deployments you can use mutliple flags `-d contract-name1 arg1 arg2 -d contract-name2 arg3 arg4` or you can put the arguments all in one string seperated by the contract name `-d contract-name1 arg1 arg2 countract-name2 arg3 arg4`
     - `-a`, `--account <PATH>` — Path to the account pk file.
 
-### Profile Management
+### Profile Management Commands
 
-Partizee uses a profile-based system for managing blockchain identities. Each profile contains:
-- Network (mainnet/testnet)
-- Address
-- Private key
-- Path to private key file
+- `partizee profile create [OPTIONS]`
+  - Create a new blockchain profile (account). If no options are provided, the interactive menu will open.  if no wallet exists on your machine it will ask to create a new wallet before the account can be made.
+  
+  - Options:
+    - `-i`, `--interactive` — Use interactive menu to create a new profile.
+    - `-n`, `--network <NETWORK>` — Specify the network (mainnet/testnet).
 
-Profiles can be created and managed in several ways:
+- `partizee profile show [OPTIONS]`
+  - Show details for a blockchain profile/account.
+  - Options:
+    - `-i`, `--interactive` — Use interactive menu to select and show a profile.
+    - `-n`, `--network <NETWORK>` — Specify the network.
+    - `-a`, `--address <ADDRESS>` — Specify the account address.
 
-1. **Default Profile**: If no profile exists, Partizee will automatically:
-   - Create a new wallet if none exists
-   - Create a new account on testnet
-   - Store the private key file in your workspace
-
-2. **Profile Creation Options**:
-   - From an existing private key file
-   - From an address and private key pair
-   - From just a private key (address will be derived)
-   - From just an address (will search for matching private key file)
-   - Interactively through the menu system
-
-3. **Profile Operations**:
-   - Show account details and balance
-   - Mint gas (testnet only)
-   - Update private key
-   - Update network
-   - Update address
-
-4. **Profile Configuration**:
-   You can specify profile details through:
-   - Command line options
-   - Configuration files
-   - Interactive menus
-   - Environment variables
+- `partizee profile mint-gas [OPTIONS]`
+  - Mint testnet gas for a profile/account (testnet only).
+  - Options:
+    - `-i`, `--interactive` — Use interactive menu to select a profile.
+    - `-n`, `--network <NETWORK>` — Specify the network.
+    - `-a`, `--address <ADDRESS>` — Specify the account address.
+    - `-k`, `--private-key <PRIVATE_KEY>` — Specify the private key.
+    - `-p`, `--path <PATH>` — Path to the account pk file.
 
 ### Example Usage
 
@@ -134,7 +134,7 @@ Profiles can be created and managed in several ways:
 partizee new my-dapp
 
 # Deploy using a specific profile
-partizee deploy --chain testnet --deploy-args 00d277aa1bf5702ab9fc690b04bd68b5a981095530
+partizee deploy --chain testnet --deploy-args counter 00d277aa1bf5702ab9fc690b04bd68b5a981095530
 ```
 
 ---
@@ -158,11 +158,6 @@ Partizee stores private keys and account information securely in your workspace.
 ```sh
 cargo test
 ```
-
-### Code Structure
-
-- `src/commands/account.rs` — Profile and wallet management logic
-- `src/utils/` — Utility functions for file system navigation, menus, and more
 
 ## Contributing
 

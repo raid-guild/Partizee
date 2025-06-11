@@ -25,6 +25,20 @@ else
     BIN_DIR="$HOME/.local/bin"
 fi
 
+# Check for Java (OpenJDK 17)
+JAVA_VERSION=$(java -version 2>&1 | awk -F[\".] '/version/ {print $2}')
+if ! command -v java &> /dev/null; then
+    echo "Java (OpenJDK 17) is required but not installed."
+    echo "Please install OpenJDK 17: https://openjdk.org/install/"
+    exit 1
+elif [ "$JAVA_VERSION" != "17" ]; then
+    echo "Java version 17 is required. Detected version: $JAVA_VERSION"
+    echo "Please install OpenJDK 17: https://openjdk.org/install/"
+    exit 1
+else
+    echo "Java (OpenJDK 17) is installed."
+fi
+
 # Install cargo-partisia-contract if not already installed
 if ! command -v cargo pbc &> /dev/null; then
     echo "Installing cargo-partisia-contract..."
