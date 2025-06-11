@@ -5,17 +5,17 @@ use std::path::PathBuf;
 use std::fs;
 
 use crate::commands::user_profile::{Profile, ProfileConfig};
-use crate::utils::pbc_commands::pbc_create_new_account;
-use crate::utils::utils::assert_partizee_project;
+use crate::utils::pbc_commands::{pbc_create_new_account, pbc_create_new_wallet};
+use crate::utils::utils::{assert_partizee_project,};
 
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
 use crate::commands::new::{NewProject, ProjectConfig};
 use crate::utils::clap_cli::{Arguments, Commands, ProfileSubcommands};
 use crate::utils::utils::{get_address_from_pk};
-use crate::utils::fs_nav::{get_all_contract_names};
+use crate::utils::fs_nav::{get_all_contract_names, id_pbc_path};
 use crate::utils::menus::{
-    compile_menu, create_new_pbc_account_menu, deploy_menu, new_project_menu, select_pk_menu,
+    compile_menu, create_new_pbc_account_menu, deploy_menu, create_new_wallet_menu, new_project_menu, select_pk_menu
 };
 
 
@@ -174,6 +174,16 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 if interactive {
                     let create_pbc_account: String = create_new_pbc_account_menu()?;
                     if create_pbc_account.len() > 0 {
+                        // check if wallet already exists
+                        let wallet_exists: bool = id_pbc_path().is_some();
+                        if !wallet_exists {
+                           let network: String = create_new_wallet_menu()?;
+                           if network.len() > 0 {
+                            pbc_create_new_wallet(&network)?;
+                           } else {
+                            return Err("No wallet created".into());
+                           }
+                        }
                         pbc_create_new_account(&create_pbc_account)?;
                     }
                 } else {

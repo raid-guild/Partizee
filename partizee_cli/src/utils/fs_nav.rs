@@ -25,7 +25,6 @@ pub fn find_workspace_root() -> Option<PathBuf> {
             .map(|chunk| {
                 let tx = tx.clone();
                 let chunk = chunk.to_vec();
-                let current_folder = current_folder.clone();
                 let found = Arc::clone(&found);
                 thread::spawn(move || {
                     for entry in chunk {

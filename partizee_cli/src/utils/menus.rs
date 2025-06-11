@@ -393,6 +393,28 @@ pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     return Ok(force_create.unwrap());
 }
 
+pub fn create_new_wallet_menu() -> Result<String, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new Wallet")?;
+    intro(DELIM)?;
+    // ask if user wants to create a new Wallet
+    let create_new: Result<_, std::io::Error> = confirm(
+        "Would you like to create a new Wallet? (yes will create a new, if one exists already it will force create a new Wallet)",
+    )
+    .initial_value(false)
+    .interact();
+
+    if create_new.unwrap() {
+        let network: String = input("Enter the network to create the account on")
+            .placeholder("testnet")
+            .default_input("testnet")
+            .interact()?;
+        return Ok(network);
+    }
+    return Err("No wallet created.".into());
+}
+
 pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
