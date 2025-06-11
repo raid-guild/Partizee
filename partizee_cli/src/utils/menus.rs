@@ -2,16 +2,22 @@ use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
 use crate::commands::user_profile::{Profile, ProfileConfig};
-use crate::utils::fs_nav::get_pk_files;
-use cliclack::{confirm, input, intro, outro, select, Input};
+use crate::utils::fs_nav::{get_pk_files, get_all_contract_names};
+use crate::utils::utils::assert_partizee_project;
+use cliclack::{confirm, input, intro, outro, select, clear_screen};
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+pub const DELIM: &str = "==================================================";
 
 pub fn new_project_menu(
     name: Option<String>,
     output_dir: Option<String>,
 ) -> Result<ProjectConfig, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;  
     intro("Partizee - Create a new Partisia Blockchain project")?;
+    intro(DELIM)?;
 
     let name: String = if name.is_some() {
         name.unwrap()
@@ -57,9 +63,14 @@ pub fn new_project_menu(
 pub fn compile_menu(
     config: ProjectCompiler,
 ) -> Result<ProjectCompiler, Box<dyn std::error::Error>> {
+    assert_partizee_project()?;
     let mut build_args_vec: Vec<String> = Vec::new();
     let mut additional_args_vec: Vec<String> = Vec::new();
     let mut files_vec: Vec<String> = Vec::new();
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Compile a Partisia Blockchain project")?;
+    intro(DELIM)?;
     if config.path.is_none() {
         let use_path_menu = confirm("Would you like to specify a path to the workspace Cargo.toml directory? (if No: we'll compile all contracts in the contracts directory with default settings)")
         .initial_value(false)
@@ -242,10 +253,14 @@ pub fn compile_menu(
 }
 
 pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Deploy a Partisia Blockchain project")?;
+    intro(DELIM)?;
     let network: Option<String>;
     let path_to_pk: Option<PathBuf>;
 
-    let mut custom_names: Option<Vec<String>> = None;
+    let mut custom_names: Vec<String> = Vec::new();
     let mut deployer_args_mapping: HashMap<String, Vec<String>> = HashMap::new();
 
     if config.network.is_none() {
@@ -262,9 +277,9 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     } else {
         network = config.network;
     };
-
-    if config.contract_names.is_none() {
-        let use_custom_names = confirm("Would you like to specify specific names and arguments of the contracts you'd like to deploy? \n (if No: we'll deploy all contracts in the contracts directory)")
+    
+    if config.contract_names.is_empty() {
+        let use_custom_names = confirm("Would you like to specify specific names of the contracts you'd like to deploy? \n (if No: we'll deploy all contracts in the contracts directory)")
         .initial_value(false)
         .interact()?;
         if use_custom_names {
@@ -281,12 +296,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
                     }
                 })
                 .interact()?;
-
-                // get deployer args for the contract
-                let deployer_args: Vec<String> = get_deployer_args(&custom_name).unwrap();
-                deployer_args_mapping.insert(custom_name.clone(), deployer_args);
-                custom_names.as_mut().unwrap().push(custom_name);
-
+                custom_names.push(custom_name);
                 let another: bool = confirm("Enter another contract name? (y/n)")
                     .initial_value(false)
                     .interact()?;
@@ -295,25 +305,29 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
                 }
             }
         } else {
-            custom_names = None;
+            // if no custom names, deploy all contracts in the contracts directory
+            if let Some(all_contract_names) = get_all_contract_names() {
+                custom_names = all_contract_names;
+            } else {
+                return Err("No contracts found in the contracts directory".into());
+            }
         }
     } else {
         custom_names = config.contract_names;
     }
 
+    // get deployer args for each contract
+    for name in custom_names.iter() {
+        let deployer_args: Vec<String> = get_deployer_args(name);
+        deployer_args_mapping.insert(name.clone(), deployer_args);
+    }
+
     if config.path_to_pk.is_some() {
         path_to_pk = config.path_to_pk;
     } else {
-        // ask if user wants to create a new account
-        let select_account: bool = confirm("Would you like to select an existing account?")
-            .initial_value(false)
-            .interact()?;
-        if select_account {
+
             let selected_account: PathBuf = select_pk_menu()?;
             path_to_pk = Some(selected_account);
-        } else {
-            path_to_pk = None;
-        }
     }
     let deployer_args: Option<HashMap<String, Vec<String>>> = if deployer_args_mapping.len() > 0 {
         Some(deployer_args_mapping)
@@ -329,7 +343,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     })
 }
 
-fn get_deployer_args(contract_name: &str) -> Option<Vec<String>> {
+fn get_deployer_args(contract_name: &str) -> Vec<String> {
     let mut deployer_args_vec: Vec<String> = Vec::new();
     let add_deployer_args = confirm(format!("Does the {} contract need deployer arguments? \n Please enter them one at a time in the order needed for initialization)", contract_name))
         .initial_value(false)
@@ -360,13 +374,15 @@ fn get_deployer_args(contract_name: &str) -> Option<Vec<String>> {
                 break;
             }
         }
-    } else {
-        return None;
     }
-    Some(deployer_args_vec)
+    deployer_args_vec
 }
 
 pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Force create a new Wallet")?;
+    intro(DELIM)?;
     // ask if user wants to force create a new Wallet
     let force_create: Result<_, std::io::Error> = confirm(
         "Would you like to force create a new Wallet? (yes will overwrite the existing Wallet)",
@@ -378,6 +394,11 @@ pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new account with custom settings")?;
+    intro(DELIM)?;
+
     let path_to_pk: Option<String> = input_optional(
         "Enter the path to the account private key file (hit enter to skip if no file exists and you want to enter in the private key manually)",
         "pathbuf",
@@ -434,8 +455,13 @@ pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     Ok(account)
 }
 pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new account")?;
+    intro(DELIM)?;
+
     let create_pbc_account: bool =
-        confirm("Would you like to create a new account? (yes will overwrite the existing Wallet)")
+        confirm("Would you like to create a new account? (this will generate a new .pk file in you current directory)")
             .initial_value(false)
             .interact()?;
     if create_pbc_account {
@@ -447,6 +473,7 @@ pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error
     }
     Err("No account created.".into())
 }
+
 fn input_optional(
     prompt: &str,
     input_type: &str,
@@ -505,6 +532,10 @@ fn input_optional(
 }
 
 pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new account")?;
+    intro(DELIM)?;
     let create_new: Result<&'static str, std::io::Error> =
         select("Would you like to create a new account?")
             .item(
@@ -538,6 +569,11 @@ pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> 
 }
 
 pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    // clear screen
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Select an account")?;
+    intro(DELIM)?;
     // ask if user wants to select an account
     let select_account: Result<_, std::io::Error> =
         confirm("Would you like to select an account? (yes will open a menu to select an account)")
@@ -565,18 +601,18 @@ pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
                 .zip(account_indecies.iter())
                 .map(|(name, index)| {
                     (
+                        account_files[index.to_string().parse::<usize>().unwrap()].clone().to_str().unwrap().to_string(),
+                        String::from(&index.to_string()),
                         name.clone(),
-                        String::from(index.to_string()),
-                        String::from(""),
                     )
                 })
                 .collect();
             // open menu to select an account
-            let selected_index = select("pick an account")
+            let selection = select("pick an account")
                 .items(&account_tuples)
                 .interact()?;
-            let selected_account = account_files[selected_index.parse::<usize>().unwrap()].clone();
-            return Ok(selected_account);
+            let selected_account_path: PathBuf = PathBuf::from(selection);
+            return Ok(selected_account_path);
         }
     } else {
         return Err("No account files found".into());

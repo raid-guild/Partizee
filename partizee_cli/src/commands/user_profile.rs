@@ -264,13 +264,13 @@ impl Profile {
             .arg("mintgas")
             .arg(network_command)
             .arg(&self.address)
-            .output()
-            .expect("Failed to mint gas");
-        if output.status.success() {
-            return print_output("mint_gas", &output);
+            .output();
+        if output.as_ref().unwrap().stdout.len() > 0 {
+           println!("{}", String::from_utf8(output.unwrap().stdout).unwrap());
         } else {
-            return print_error(&output);
+            eprintln!("{}", String::from_utf8(output.unwrap().stderr).unwrap());
         }
+        Ok(())
     }
 
     pub fn private_key(&self) -> String {
@@ -303,9 +303,15 @@ impl Profile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::utils::setup_test_environment;
 
-    fn setup_default_account() -> Profile {
-        // create a new account
+    fn cleanup(original_dir: PathBuf) {
+        std::env::set_current_dir(original_dir).unwrap();
+    }
+    #[test]
+    fn test_create_new_default_account() {
+        let (temp_dir, _, original_dir) = setup_test_environment();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
         let account: Profile = Profile::default();
         assert_eq!(
             account.clone().private_key().len() > 0,
@@ -318,62 +324,32 @@ mod tests {
             "address is not set"
         );
         assert_eq!(account.clone().network, "testnet", "network is not set");
-        return account;
-    }
-
-    fn setup_account_from_path(path: &PathBuf) -> Profile {
-        let account: Profile = Profile::new(ProfileConfig {
-            network: Some("mainnet".to_string()),
-            address: None,
-            private_key: None,
-            path_to_pk: Some(path.clone()),
-        })
-        .unwrap();
-        assert_eq!(
-            account.clone().private_key().len() > 0,
-            true,
-            "private key is not set"
-        );
-        assert_eq!(
-            account.clone().address().len() > 0,
-            true,
-            "address is not set"
-        );
-        assert_eq!(account.clone().network, "mainnet", "network is not set");
-        return account;
-    }
-
-    #[test]
-    fn test_create_new_default_account() {
-        let account: Profile = setup_default_account();
-        assert_eq!(
-            account.clone().private_key().len() > 0,
-            true,
-            "private key is not set"
-        );
-        assert_eq!(
-            account.clone().address().len() > 0,
-            true,
-            "address is not set"
-        );
-        assert_eq!(account.clone().network, "testnet", "network is not set");
+        cleanup(original_dir);
     }
 
     #[test]
     fn test_load_account_from_path_to_pk_invalid_path() {
+        let (temp_dir, _, original_dir) = setup_test_environment();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
         let mut account: Profile = Profile::default();
         let result =
             account.load_account_from_path_to_pk(Some("testnet"), &PathBuf::from("invalid_path"));
         assert_eq!(result.is_err(), true, "should be an error");
         assert_eq!(result.err().unwrap().to_string(), "Failed to load account from path_to_pk: load_account_from_pk_file: Failed to read file: invalid_path");
+        cleanup(original_dir);
     }
 
     #[test]
     fn test_create_new_account_from_path() {
-        // get file path to pk file
-        let pk_files: Vec<PathBuf> = get_pk_files();
-        if pk_files.len() > 0 {
-            let account: Profile = setup_account_from_path(&pk_files[0]);
+        let (temp_dir, _, original_dir) = setup_test_environment();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+        let account: Profile = Profile::new(ProfileConfig {
+            network: Some("mainnet".to_string()),
+            address: None,
+            private_key: None,
+            path_to_pk: Some(temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk")),
+        })
+        .unwrap();
             assert_eq!(
                 account.clone().private_key().len() > 0,
                 true,
@@ -385,20 +361,18 @@ mod tests {
                 "address is not set"
             );
             assert_eq!(account.clone().network, "mainnet", "network is not set");
-        } else {
-            println!("no pk files found");
-        }
+            cleanup(original_dir);
     }
 
     #[test]
     fn test_load_account_from_path() {
+        let (temp_dir, _, original_dir) = setup_test_environment();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
         // find a pk file in root
-        let pk_files: Vec<PathBuf> = get_pk_files();
-        assert_eq!(pk_files.len() > 0, true, "no pk files found");
-        if pk_files.len() > 0 {
+
             let mut account: Profile = Profile::default();
             account
-                .load_account_from_path_to_pk(Some("testnet"), &pk_files[0])
+                .load_account_from_path_to_pk(Some("testnet"), &temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk"))
                 .unwrap();
             assert_eq!(
                 account.clone().private_key().len() > 0,
@@ -421,8 +395,6 @@ mod tests {
                 false,
                 "path is not a file"
             );
-        } else {
-            println!("must create a new account");
-        }
+            cleanup(original_dir);
     }
 }
