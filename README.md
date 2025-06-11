@@ -106,7 +106,7 @@ Partizee provides several commands for managing your Partisia dApp workflow:
 
 - `partizee profile create [OPTIONS]`
   - Create a new blockchain profile (account). If no options are provided, the interactive menu will open.  if no wallet exists on your machine it will ask to create a new wallet before the account can be made.
-  
+
   - Options:
     - `-i`, `--interactive` — Use interactive menu to create a new profile.
     - `-n`, `--network <NETWORK>` — Specify the network (mainnet/testnet).
@@ -132,9 +132,14 @@ Partizee provides several commands for managing your Partisia dApp workflow:
 ```sh
 # Create a new project
 partizee new my-dapp
-
+# Create a wallet/account
+partizee profile create
+# Compile contracts
+partizee compile
 # Deploy using a specific profile
 partizee deploy --chain testnet --deploy-args counter 00d277aa1bf5702ab9fc690b04bd68b5a981095530
+# or with the interactive menu
+partizee deploy
 ```
 
 ---
