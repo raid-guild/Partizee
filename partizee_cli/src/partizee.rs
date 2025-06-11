@@ -83,14 +83,6 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             assert_partizee_project()?;
             // check if the project is compiled
-            let project_compiler: ProjectCompiler = ProjectCompiler::new(ProjectCompiler {
-                path: None,
-                files: None,
-                build_args: None,
-                additional_args: None,
-            });
-
-            project_compiler.compile_contracts()?;
 
             let mut use_interactive: bool = interactive;
             // if all args are empty open interactive menu
@@ -103,36 +95,16 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 use_interactive = true;
             }
             let mut deployer: DeploymentWithProfile;
-            
-            // format pk_path into a PathBuf
-            // let mut path_to_pk: Option<PathBuf> = pk_path.clone().map(|path| PathBuf::from(path));
-            // if path_to_pk.is_none() {
-            //     // find first pk file in the project root
-            //     let pk_files: Vec<PathBuf> = get_pk_files();
-            //     if pk_files.len() == 0 {
-            //         // if no pk files found, create a new pbc account
-            //         let create_pbc_account_network: String = create_new_pbc_account_menu()?;
 
-            //         pbc_create_new_account(&create_pbc_account_network)?;
-
-            //         let pk_files: Vec<PathBuf> = get_pk_files();
-                    
-            //         if pk_files.len() > 0 {
-            //             path_to_pk = Some(pk_files[0].clone());
-            //         } else {
-            //             return Err("Failed to create new account, please run `cargo pbc wallet create` and then try again".into());
-            //         }
-            //     } else {
-            //         println!("pk_files FOUND: {:#?}", pk_files);
-            //         path_to_pk = Some(pk_files[0].clone());
-            //     }
-            // }
-
+            // if no contracts are provided, get all contract names from the project
             let mut contracts_to_deploy: Option<Vec<String>> = None;
             // get list of all contract names
 
             if contract_names.is_none() {
                 contracts_to_deploy = get_all_contract_names();
+                if contracts_to_deploy.is_none() {
+                    return Err("No contracts found in project, if you have contracts in your project, please compile by running `partizee compile`".into());
+                }
             } else {
                 contracts_to_deploy = contract_names;
             }
@@ -166,11 +138,24 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 
                 deployer = DeploymentWithProfile::new(deployer_args);
             } else {
+                let final_pk_path: PathBuf;
+                if config.path_to_pk.is_none() {
+                    let pk_path: PathBuf = select_pk_menu().expect("Failed to select account");
+                    final_pk_path = pk_path;
+                } else {
+                    // if passed in path is a file, use it, otherwise select a new account
+                    if config.path_to_pk.as_ref().unwrap().is_file() {   
+                        final_pk_path = config.path_to_pk.clone().unwrap();
+                    } else {
+                        let pk_path: PathBuf = select_pk_menu().expect("Failed to select account, if none exists, please run `partizee profile create`");
+                        final_pk_path = pk_path;
+                    }
+                }
                 let deployer_args: Deployer = Deployer {
                     network: config.network.unwrap_or("".to_string()),
                     contract_names: config.contract_names,
                     deployer_args: config.deployer_args.unwrap_or(HashMap::new()),
-                    path_to_pk: config.path_to_pk.unwrap_or(PathBuf::from("")),
+                    path_to_pk: final_pk_path,
                 };
                 deployer = DeploymentWithProfile::new(deployer_args);
             }
@@ -182,11 +167,18 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Profile { commands } => match commands {
             ProfileSubcommands::ProfileCreate { shared_args } => {
-                if shared_args.interactive {
+                let mut interactive: bool = shared_args.interactive;
+                if shared_args.network.is_none() {
+                    interactive = true;
+                }
+                if interactive {
                     let create_pbc_account: String = create_new_pbc_account_menu()?;
                     if create_pbc_account.len() > 0 {
                         pbc_create_new_account(&create_pbc_account)?;
                     }
+                } else {
+                    let network: String = shared_args.network.unwrap_or("testnet".to_string());
+                    pbc_create_new_account(&network)?;
                 }
             }
             ProfileSubcommands::ProfileShow { shared_args } => {
@@ -225,9 +217,10 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 if shared_args.address.is_none() &&
                 shared_args.network.is_none() &&
                 shared_args.private_key.is_none() &&
-                shared_args.address.is_none() {
+                shared_args.path.is_none() {
                     interactive = true;
                 }
+                
                 if interactive {
                     let pk_path: PathBuf = select_pk_menu().expect("Failed to select account");
                     let account_config: ProfileConfig = ProfileConfig {
@@ -251,7 +244,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 
                         }
                         (true, false, false) => {
-                            panic!("cannot get private key from address");
+                            return Err("Cannot derive private key from address alone".into());  
                         }
                         (false, false, false) => {
                             pk_path = Some(select_pk_menu().expect("Failed to select account"));
@@ -264,7 +257,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 
                         }
                         _ => {
-                            panic!("Invalid arguments");
+                            return Err("Invalid arguments".into());
                         }
                     }
                     let account: Profile = Profile::new(ProfileConfig {

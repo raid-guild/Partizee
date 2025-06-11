@@ -140,7 +140,7 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     // write temp file with private key
     let all_read_write = std::fs::Permissions::from_mode(0o666);
     let temp_pk = Builder::new().permissions(all_read_write).tempfile().unwrap();
-    std::fs::write(&temp_pk.path(), private_key).unwrap();
+    std::fs::write(&temp_pk.path(), private_key)?;
 
     let mut command = Command::new("cargo");
     command
