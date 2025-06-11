@@ -2,6 +2,7 @@ use clap::Parser;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::fs;
 
 use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::pbc_commands::pbc_create_new_account;
@@ -11,7 +12,8 @@ use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
 use crate::commands::new::{NewProject, ProjectConfig};
 use crate::utils::clap_cli::{Arguments, Commands, ProfileSubcommands};
-use crate::utils::fs_nav::{get_all_contract_names, get_pk_files};
+use crate::utils::utils::{get_address_from_pk};
+use crate::utils::fs_nav::{get_all_contract_names};
 use crate::utils::menus::{
     compile_menu, create_new_pbc_account_menu, deploy_menu, new_project_menu, select_pk_menu,
 };
@@ -219,7 +221,14 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             ProfileSubcommands::ProfileMintGas { shared_args } => {
-                if shared_args.interactive {
+                let mut interactive: bool = shared_args.interactive;
+                if shared_args.address.is_none() &&
+                shared_args.network.is_none() &&
+                shared_args.private_key.is_none() &&
+                shared_args.address.is_none() {
+                    interactive = true;
+                }
+                if interactive {
                     let pk_path: PathBuf = select_pk_menu().expect("Failed to select account");
                     let account_config: ProfileConfig = ProfileConfig {
                         network: shared_args.network,
@@ -228,10 +237,43 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                         path_to_pk: Some(pk_path),
                     };
                     let account: Profile = Profile::new(account_config).unwrap();
-                    account.mint_gas().expect("Failed to mint gas");
+                    account.mint_gas()?;
+        
                 } else {
-                    let account: Profile = Profile::default();
-                    account.mint_gas().expect("Failed to mint gas");
+                    let mut address: Option<String> = shared_args.address;
+                    let network: Option<String> = Some(shared_args.network.unwrap_or("testnet".to_string()));
+                    let mut private_key: Option<String> = shared_args.private_key;
+                    let mut pk_path: Option<PathBuf> = shared_args.path.map(|path| PathBuf::from(path));
+
+                    match (address.is_some(), private_key.is_some(), pk_path.is_some()) {
+                        (false, true, false) => {
+                            address = Some(get_address_from_pk(&private_key.clone().unwrap())?);
+
+                        }
+                        (true, false, false) => {
+                            panic!("cannot get private key from address");
+                        }
+                        (false, false, false) => {
+                            pk_path = Some(select_pk_menu().expect("Failed to select account"));
+                            private_key = Some(fs::read_to_string(&pk_path.clone().unwrap())?);
+                            address = Some(get_address_from_pk(&private_key.clone().unwrap())?);
+                        }
+                        (_, _, true) => {
+                            private_key = Some(fs::read_to_string(&pk_path.clone().unwrap())?);
+                            address = Some(get_address_from_pk(&private_key.clone().unwrap())?);
+
+                        }
+                        _ => {
+                            panic!("Invalid arguments");
+                        }
+                    }
+                    let account: Profile = Profile::new(ProfileConfig {
+                        network: network.clone(),
+                        address: address.clone(),
+                        private_key: private_key.clone(),
+                        path_to_pk: pk_path.clone(),
+                    })?;
+                    account.mint_gas()?;
                 }
             }
         },

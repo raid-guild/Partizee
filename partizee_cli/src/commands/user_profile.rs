@@ -264,13 +264,13 @@ impl Profile {
             .arg("mintgas")
             .arg(network_command)
             .arg(&self.address)
-            .output()
-            .expect("Failed to mint gas");
-        if output.status.success() {
-            return print_output("mint_gas", &output);
+            .output();
+        if output.as_ref().unwrap().stdout.len() > 0 {
+           println!("{}", String::from_utf8(output.unwrap().stdout).unwrap());
         } else {
-            return print_error(&output);
+            eprintln!("{}", String::from_utf8(output.unwrap().stderr).unwrap());
         }
+        Ok(())
     }
 
     pub fn private_key(&self) -> String {

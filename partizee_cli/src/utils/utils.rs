@@ -136,10 +136,7 @@ pub fn get_account_address_from_path(path: &PathBuf) -> Result<String, Box<dyn s
 
 pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::error::Error>> {
     // validate pk length
-    if private_key.len() != 64 {
-        return Err("get_address_from_pk: Invalid private key".into());
-    }
-
+    assert_private_key_length(private_key)?;
     // write temp file with private key
     let all_read_write = std::fs::Permissions::from_mode(0o666);
     let temp_pk = Builder::new().permissions(all_read_write).tempfile().unwrap();
@@ -170,9 +167,7 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
         // trim non alphanumeric characters
         address = address.chars().filter(|c| c.is_alphanumeric()).collect();
         // validate address length
-        if address.len() != 42 {
-            return Err(format!("Invalid address length: {} (expected 42)", address.len()).into());
-        }
+        assert_address_length(&address)?;
         Ok(address)
     } else {
         return print_error(&output.unwrap());
@@ -185,22 +180,16 @@ pub fn address_is_valid(
     private_key: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     // validate address length
-    if address.len() != 42 {
-        return Ok(false);
-    }
+    assert_address_length(&address)?;
 
     // validate private key length
-    if private_key.len() != 64 {
-        return Ok(false);
-    }
+    assert_private_key_length(&private_key)?;
 
     let derived_address = get_address_from_pk(&private_key).unwrap_or("".to_string());
 
 
     // validate address length
-    if derived_address.len() != 42 {
-        return Ok(false);
-    }
+    assert_address_length(&derived_address)?;
 
     if derived_address == address {
         return Ok(true);

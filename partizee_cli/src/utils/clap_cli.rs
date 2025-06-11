@@ -117,8 +117,6 @@ pub struct ProfileSharedArgs {
         long = "interactive"
     )]
     pub(crate) interactive: bool,
-    #[clap(help = "name of the account", short = 'n', long = "name")]
-    pub(crate) name: Option<String>,
     #[clap(
         help = "network account will be used on",
         short = 'w',

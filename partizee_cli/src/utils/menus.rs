@@ -2,18 +2,22 @@ use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
 use crate::commands::user_profile::{Profile, ProfileConfig};
-use crate::utils::fs_nav::{find_paths_with_name, find_workspace_root, get_pk_files, get_all_contract_names};
+use crate::utils::fs_nav::{get_pk_files, get_all_contract_names};
 use crate::utils::utils::assert_partizee_project;
-use cliclack::{confirm, input, intro, outro, select};
+use cliclack::{confirm, input, intro, outro, select, clear_screen};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::env;
+
+pub const DELIM: &str = "==================================================";
 
 pub fn new_project_menu(
     name: Option<String>,
     output_dir: Option<String>,
 ) -> Result<ProjectConfig, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;  
     intro("Partizee - Create a new Partisia Blockchain project")?;
+    intro(DELIM)?;
 
     let name: String = if name.is_some() {
         name.unwrap()
@@ -63,6 +67,10 @@ pub fn compile_menu(
     let mut build_args_vec: Vec<String> = Vec::new();
     let mut additional_args_vec: Vec<String> = Vec::new();
     let mut files_vec: Vec<String> = Vec::new();
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Compile a Partisia Blockchain project")?;
+    intro(DELIM)?;
     if config.path.is_none() {
         let use_path_menu = confirm("Would you like to specify a path to the workspace Cargo.toml directory? (if No: we'll compile all contracts in the contracts directory with default settings)")
         .initial_value(false)
@@ -245,8 +253,12 @@ pub fn compile_menu(
 }
 
 pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Deploy a Partisia Blockchain project")?;
+    intro(DELIM)?;
     let network: Option<String>;
-    let mut path_to_pk: Option<PathBuf> = None;
+    let path_to_pk: Option<PathBuf>;
 
     let mut custom_names: Vec<String> = Vec::new();
     let mut deployer_args_mapping: HashMap<String, Vec<String>> = HashMap::new();
@@ -265,7 +277,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     } else {
         network = config.network;
     };
-
+    
     if config.contract_names.is_empty() {
         let use_custom_names = confirm("Would you like to specify specific names of the contracts you'd like to deploy? \n (if No: we'll deploy all contracts in the contracts directory)")
         .initial_value(false)
@@ -303,13 +315,12 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     } else {
         custom_names = config.contract_names;
     }
-    println!("custom_names: {:?}", custom_names);
+
     // get deployer args for each contract
     for name in custom_names.iter() {
         let deployer_args: Vec<String> = get_deployer_args(name);
         deployer_args_mapping.insert(name.clone(), deployer_args);
     }
-
 
     if config.path_to_pk.is_some() {
         path_to_pk = config.path_to_pk;
@@ -368,6 +379,10 @@ fn get_deployer_args(contract_name: &str) -> Vec<String> {
 }
 
 pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Force create a new Wallet")?;
+    intro(DELIM)?;
     // ask if user wants to force create a new Wallet
     let force_create: Result<_, std::io::Error> = confirm(
         "Would you like to force create a new Wallet? (yes will overwrite the existing Wallet)",
@@ -379,6 +394,11 @@ pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new account with custom settings")?;
+    intro(DELIM)?;
+
     let path_to_pk: Option<String> = input_optional(
         "Enter the path to the account private key file (hit enter to skip if no file exists and you want to enter in the private key manually)",
         "pathbuf",
@@ -435,6 +455,11 @@ pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     Ok(account)
 }
 pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new account")?;
+    intro(DELIM)?;
+
     let create_pbc_account: bool =
         confirm("Would you like to create a new account? (yes will overwrite the existing Wallet)")
             .initial_value(false)
@@ -506,6 +531,10 @@ fn input_optional(
 }
 
 pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Create a new account")?;
+    intro(DELIM)?;
     let create_new: Result<&'static str, std::io::Error> =
         select("Would you like to create a new account?")
             .item(
@@ -539,6 +568,11 @@ pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> 
 }
 
 pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    // clear screen
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Select an account")?;
+    intro(DELIM)?;
     // ask if user wants to select an account
     let select_account: Result<_, std::io::Error> =
         confirm("Would you like to select an account? (yes will open a menu to select an account)")
@@ -555,13 +589,11 @@ pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
                 .iter()
                 .map(|file| file.file_name().unwrap().to_str().unwrap().to_string())
                 .collect();
-            println!("account_names: {:?}", account_names);
             let account_indecies: Vec<u32> = account_files
                 .iter()
                 .enumerate()
                 .map(|(index, _)| index as u32)
                 .collect();
-            println!("account_indecies: {:?}", account_indecies);
             // create vec of tuples with name, and index
             let account_tuples: Vec<(String, String, String)> = account_names
                 .iter()
@@ -574,7 +606,6 @@ pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
                     )
                 })
                 .collect();
-            println!("account_tuples: {:?}", account_tuples);
             // open menu to select an account
             let selection = select("pick an account")
                 .items(&account_tuples)
