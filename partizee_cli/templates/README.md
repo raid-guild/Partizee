@@ -1,15 +1,26 @@
+### Partizee bootstrapped project
 This project was bootstrapped with [Partizee](https://github.com/raid-guild/partizee).
 
 ## Project Structure
 
 ```
-{{project_name}}/
-├── packages/
-│   ├── rust/           # Smart Contract
-│   │   ├── contracts/  # Contract source files
-│   │   ├── src/        # Contract tests
-│   │   └── test/       # Contract tests
-│   └── frontend/         # Frontend application
+project_name/
+├── rust/                  # Smart contract template
+│   ├── contracts/         # Contract source files
+│   │   └── counter/
+│   └── src/               # Rust main entry
+│       └── main.rs
+├── frontend/              # Frontend application template
+│   ├── public/            # Static assets
+│   └── src/               # Frontend source code
+│       ├── app/
+│       ├── context/
+│       ├── hooks/
+│       ├── types/
+│       └── utils/
+├── .gitignore.template
+├── Cargo.template.toml
+├── LICENSE.template
 ```
 
 ## Getting Started

@@ -18,24 +18,28 @@ You can use the provided install script to build and install the CLI to your loc
 ./install.sh
 ```
 
-This will build the project and copy the `partizee` binary to `~/.local/bin/partizee`.  
-Make sure `~/.local/bin` is in your `PATH`:
+This will build the project and copy the `partizee` binary to `~/.local/bin/partizee` and add the tool to your local path.  
+You can make sure `~/.local/bin` is in your `PATH` by executing:
 
 ```sh
 export PATH="$PATH:$HOME/.local/bin"
 ```
 
 ### Prerequisites
-   All the below progamrams are required in order to use this application
-- **Rust v 1.86.0 required** [Rustup](https://rustup.rs/) you will have to downgrade to v 1.86.0 or you will get compiler errors
-- after rust is installed run:
-```
-rustup target add wasm32-unknown-unknown
-```
-- **Git required for contract compilation** [Git](https://git-scm.com/downloads)
-- **If on a Windows machine install VS with C++ required** [Visual Studio with C++](https://visualstudio.microsoft.com/downloads/)
-- **OpenJDK 17**: Required for contract compilation and related tooling. [Install OpenJDK 17](https://openjdk.org/install/)
-- **Partisia Contract Cli Tool**[Partisia Blockchain CLI tools](https://partisiablockchain.gitlab.io/documentation/smart-contracts/install-the-smart-contract-compiler.html)
+
+Ensure the following dependencies are installed before using Partizee:
+
+- **Rust (version 1.86.0 required):** Install via [Rustup](https://rustup.rs/).  
+  _Note: You must use Rust v1.86.0. Newer versions may result in compiler errors._
+- **WASM Target for Rust:**  
+  After installing Rust, add the required target:
+  ```sh
+  rustup target add wasm32-unknown-unknown
+  ```
+- **Git:** Required for contract compilation. [Download Git](https://git-scm.com/downloads)
+- **OpenJDK 17:** Required for contract compilation and related tooling. [Install OpenJDK 17](https://openjdk.org/install/)
+- **Partisia Contract CLI Tool:** Install the official CLI tools as described in the [Partisia Blockchain documentation](https://partisiablockchain.gitlab.io/documentation/smart-contracts/install-the-smart-contract-compiler.html).
+- **Windows Only:** If you are on Windows, ensure [Visual Studio with C++](https://visualstudio.microsoft.com/downloads/) is installed for contract compilation.
 
 ### External Documentation
 

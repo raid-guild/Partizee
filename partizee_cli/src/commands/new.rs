@@ -1,19 +1,14 @@
-use crate::utils::fs_nav::{find_dir};
-
+use rust_embed::Embed;
 use std::error::Error;
 use std::{
     fs,
     path::{Path, PathBuf},
-    env,
     process::Command,
 };
-use rust_embed::Embed;
 
 pub struct NewProject {
-    pub dapp_name: String,
     pub output_dir: PathBuf,
     // the root of the project
-    pub project_root: PathBuf,
 }
 
 pub struct ProjectConfig {
@@ -27,32 +22,22 @@ struct Templates;
 
 impl NewProject {
     pub fn new(config: ProjectConfig) -> Result<NewProject, Box<dyn Error>> {
-        // install project in current directory
-        let project_root = env::current_dir().unwrap_or_else(|_| {
-            panic!("Failed to find project root");
-        });
-
         // if output_dir is provided, use it, otherwise use the project name
         let output_dir = config
             .output_dir
             .unwrap_or_else(|| format!("{}/", config.name.clone()))
             .into();
 
-        Ok(NewProject {
-            dapp_name: config.name,
-            output_dir,
-            project_root: project_root.clone(),
-        })
+        Ok(NewProject { output_dir })
     }
 
     pub fn create_project_directory(&self) -> Result<(), Box<dyn std::error::Error>> {
-        for entry in Templates::iter()
-        {
+        for entry in Templates::iter() {
             let dir_path = entry.as_ref();
             if PathBuf::from(dir_path).is_dir() {
-            // Create the corresponding directory in the new project root
-            let new_dir = self.output_dir.join(dir_path);
-            fs::create_dir_all(&new_dir)?;
+                // Create the corresponding directory in the new project root
+                let new_dir = self.output_dir.join(dir_path);
+                fs::create_dir_all(&new_dir)?;
             }
         }
 
@@ -71,11 +56,15 @@ impl NewProject {
         template_name: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let destination_path = dst;
-        let template_content = Templates::get(src.to_str().unwrap_or_else(|| panic!("Invalid UTF-8 in file name"))).ok_or_else(|| "Template not found")?;
-        
+        let template_content = Templates::get(
+            src.to_str()
+                .unwrap_or_else(|| panic!("Invalid UTF-8 in file name")),
+        )
+        .ok_or_else(|| "Template not found")?;
+
         // clean up the template name to remove the .template extension if exists
         let clean_template_name: String = template_name.replace(".template", "");
-        
+
         // copy file directly
         fs::write(
             destination_path.join(&clean_template_name),
@@ -88,9 +77,9 @@ impl NewProject {
     pub fn copy_all_files(&self) -> Result<(), Box<dyn std::error::Error>> {
         for entry in Templates::iter() {
             let path = entry.as_ref();
-            
+
             let dest_path = self.output_dir.join(path);
-            
+
             // Skip directories, just ensure they exist
             if path.ends_with('/') {
                 fs::create_dir_all(&dest_path)?;
@@ -107,13 +96,9 @@ impl NewProject {
                 .file_name()
                 .and_then(|n| n.to_str())
                 .ok_or_else(|| format!("Invalid file name: {}", path))?;
-            
+
             // Copy the file using template processing
-            self.copy_template(
-                Path::new(path),
-                &dest_path.parent().unwrap(),
-                file_name,
-            )?;
+            self.copy_template(Path::new(path), &dest_path.parent().unwrap(), file_name)?;
         }
         Ok(())
     }
@@ -129,10 +114,12 @@ impl NewProject {
             .output()?;
 
         if !output.status.success() {
-            eprintln!("Warning: Failed to initialize git repository: {}", 
-                String::from_utf8_lossy(&output.stderr));
+            eprintln!(
+                "Warning: Failed to initialize git repository: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
-        
+
         Ok(())
     }
 

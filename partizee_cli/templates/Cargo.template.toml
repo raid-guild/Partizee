@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/contracts/counter"]
+members = ["rust/contracts/counterV1", "rust/contracts/counterV2", "rust/contracts/counterV3"]
 resolver = "2"
 
 [workspace.package]
