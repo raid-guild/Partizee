@@ -10,7 +10,7 @@ export const PARTISIA_SDK_CONFIGS: PartisiaSDKConfigs = {
 };
 
 // Contract Configs
-export const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000000000000000000000000000"
+export const CONTRACT_ADDRESS = "02acd7b6a57682122078bf47b8a3fafeca38ddf5a1"
 
 export const TESTNET_URL = "https://node1.testnet.partisiablockchain.com"
 
