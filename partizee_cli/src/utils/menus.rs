@@ -2,9 +2,9 @@ use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::DeployConfigs;
 use crate::commands::new::ProjectConfig;
 use crate::commands::user_profile::{Profile, ProfileConfig};
-use crate::utils::fs_nav::{get_pk_files, get_all_contract_names};
+use crate::utils::fs_nav::{get_all_contract_names, get_pk_files};
 use crate::utils::utils::assert_partizee_project;
-use cliclack::{confirm, input, intro, outro, select, clear_screen};
+use cliclack::{clear_screen, confirm, input, intro, outro, select};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -15,7 +15,7 @@ pub fn new_project_menu(
     output_dir: Option<String>,
 ) -> Result<ProjectConfig, Box<dyn std::error::Error>> {
     clear_screen()?;
-    intro(DELIM)?;  
+    intro(DELIM)?;
     intro("Partizee - Create a new Partisia Blockchain project")?;
     intro(DELIM)?;
 
@@ -277,7 +277,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     } else {
         network = config.network;
     };
-    
+
     if config.contract_names.is_empty() {
         let use_custom_names = confirm("Would you like to specify specific names of the contracts you'd like to deploy? \n (if No: we'll deploy all contracts in the contracts directory)")
         .initial_value(false)
@@ -325,9 +325,8 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     if config.path_to_pk.is_some() {
         path_to_pk = config.path_to_pk;
     } else {
-
-            let selected_account: PathBuf = select_pk_menu()?;
-            path_to_pk = Some(selected_account);
+        let selected_account: PathBuf = select_pk_menu()?;
+        path_to_pk = Some(selected_account);
     }
     let deployer_args: Option<HashMap<String, Vec<String>>> = if deployer_args_mapping.len() > 0 {
         Some(deployer_args_mapping)
@@ -623,7 +622,11 @@ pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
                 .zip(account_indecies.iter())
                 .map(|(name, index)| {
                     (
-                        account_files[index.to_string().parse::<usize>().unwrap()].clone().to_str().unwrap().to_string(),
+                        account_files[index.to_string().parse::<usize>().unwrap()]
+                            .clone()
+                            .to_str()
+                            .unwrap()
+                            .to_string(),
                         String::from(&index.to_string()),
                         name.clone(),
                     )

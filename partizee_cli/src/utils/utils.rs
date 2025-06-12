@@ -1,13 +1,13 @@
-use crate::{commands::user_profile::Profile, utils::fs_nav::id_pbc_path};
+use crate::commands::user_profile::Profile;
 use crate::utils::fs_nav::find_workspace_root;
-use tempfile::{Builder};
 use serde::de::DeserializeOwned;
+use std::os::unix::fs::PermissionsExt;
 use std::{
     fs,
     path::PathBuf,
     process::{Command, Output},
 };
-use std::os::unix::fs::PermissionsExt;
+use tempfile::Builder;
 
 /// print output to console
 /// return json output
@@ -31,7 +31,6 @@ pub fn assert_partizee_project() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
-
 
 /// print error to console
 /// return error
@@ -139,27 +138,29 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     assert_private_key_length(private_key)?;
     // write temp file with private key
     let all_read_write = std::fs::Permissions::from_mode(0o666);
-    let temp_pk = Builder::new().permissions(all_read_write).tempfile().unwrap();
+    let temp_pk = Builder::new()
+        .permissions(all_read_write)
+        .tempfile()
+        .unwrap();
     std::fs::write(&temp_pk.path(), private_key)?;
 
     let mut command = Command::new("cargo");
-    command
-        .arg("pbc")
-        .arg("account")
-        .arg("address")
-        .arg(
-            temp_pk.path().canonicalize().unwrap()
-                .to_str()
-                .ok_or("Invalid UTF-8 in path")?,
-        );
-        
+    command.arg("pbc").arg("account").arg("address").arg(
+        temp_pk
+            .path()
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .ok_or("Invalid UTF-8 in path")?,
+    );
+
     let output = command.output();
     std::fs::remove_file(temp_pk.path()).unwrap();
     if !output.as_ref().unwrap().status.success() {
         let stderr = String::from_utf8_lossy(&output.as_ref().unwrap().stderr);
         return Err(format!("Command failed: {}", stderr).into());
     }
-    
+
     if output.is_ok() {
         // get address from command output
         let mut address: String =
@@ -172,7 +173,6 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     } else {
         return print_error(&output.unwrap());
     }
-    
 }
 
 pub fn address_is_valid(
@@ -186,7 +186,6 @@ pub fn address_is_valid(
     assert_private_key_length(&private_key)?;
 
     let derived_address = get_address_from_pk(&private_key).unwrap_or("".to_string());
-
 
     // validate address length
     assert_address_length(&derived_address)?;
@@ -222,17 +221,24 @@ pub fn trim_public_key(std_output: &Output) -> String {
     public_key
 }
 
-// Add this at module level, before the tests
 #[cfg(test)]
 pub fn setup_test_environment() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let temp_dir = tempfile::tempdir().unwrap();
     // create a mock pk file
-    let pk_file = temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk");
-    fs::write(pk_file, "9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0").expect("Failed to write mock private key file");
+    let pk_file = temp_dir
+        .path()
+        .join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk");
+    fs::write(
+        pk_file,
+        "9c1a15a50a4f978f0085bd747b9da360cc0fbf5f1d0744e040873aeba46b37b0",
+    )
+    .expect("Failed to write mock private key file");
     // create a partizee project in the temp directory
     let partizee_project = temp_dir.path().join("rust/contracts");
     let frontend_project = temp_dir.path().join("frontend");
-    let target_dir = temp_dir.path().join("target/wasm32-unknown-unknown/release");
+    let target_dir = temp_dir
+        .path()
+        .join("target/wasm32-unknown-unknown/release");
     fs::create_dir_all(&partizee_project).unwrap();
     fs::create_dir_all(&frontend_project).unwrap();
     fs::create_dir_all(&target_dir).unwrap();
@@ -240,7 +246,7 @@ pub fn setup_test_environment() -> (tempfile::TempDir, PathBuf, PathBuf) {
     fs::write(cargo_toml, "[workspace]\n[package]").unwrap();
     let temp_path = temp_dir.path().to_path_buf();
     let original_dir = std::env::current_dir().unwrap();
-    (temp_dir, temp_path, original_dir)  // Return temp_dir so it stays alive
+    (temp_dir, temp_path, original_dir) // Return temp_dir so it stays alive
 }
 
 #[cfg(test)]
