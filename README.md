@@ -10,6 +10,7 @@ Partizee is a CLI tool for creating and deploying full-stack Partisia dApps. It 
 
 ## Installation
 
+<<<<<<< Updated upstream
 ### Quick Install
 
 You can use the provided install script to build and install the CLI to your local bin directory:
@@ -25,6 +26,8 @@ Make sure `~/.local/bin` is in your `PATH`:
 export PATH="$PATH:$HOME/.local/bin"
 ```
 
+=======
+>>>>>>> Stashed changes
 ### Prerequisites
    All the below progamrams are required in order to use this application
 - **Rust v 1.86.0 required** [Rustup](https://rustup.rs/) you will have to downgrade to v 1.86.0 or you will get compiler errors
