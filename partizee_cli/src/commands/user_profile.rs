@@ -266,7 +266,7 @@ impl Profile {
             .arg(&self.address)
             .output();
         if output.as_ref().unwrap().stdout.len() > 0 {
-           println!("{}", String::from_utf8(output.unwrap().stdout).unwrap());
+            println!("{}", String::from_utf8(output.unwrap().stdout).unwrap());
         } else {
             eprintln!("{}", String::from_utf8(output.unwrap().stderr).unwrap());
         }
@@ -347,21 +347,25 @@ mod tests {
             network: Some("mainnet".to_string()),
             address: None,
             private_key: None,
-            path_to_pk: Some(temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk")),
+            path_to_pk: Some(
+                temp_dir
+                    .path()
+                    .join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk"),
+            ),
         })
         .unwrap();
-            assert_eq!(
-                account.clone().private_key().len() > 0,
-                true,
-                "private key is not set"
-            );
-            assert_eq!(
-                account.clone().address().len() > 0,
-                true,
-                "address is not set"
-            );
-            assert_eq!(account.clone().network, "mainnet", "network is not set");
-            cleanup(original_dir);
+        assert_eq!(
+            account.clone().private_key().len() > 0,
+            true,
+            "private key is not set"
+        );
+        assert_eq!(
+            account.clone().address().len() > 0,
+            true,
+            "address is not set"
+        );
+        assert_eq!(account.clone().network, "mainnet", "network is not set");
+        cleanup(original_dir);
     }
 
     #[test]
@@ -370,31 +374,36 @@ mod tests {
         std::env::set_current_dir(temp_dir.path()).unwrap();
         // find a pk file in root
 
-            let mut account: Profile = Profile::default();
-            account
-                .load_account_from_path_to_pk(Some("testnet"), &temp_dir.path().join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk"))
-                .unwrap();
-            assert_eq!(
-                account.clone().private_key().len() > 0,
-                true,
-                "private key is not set"
-            );
-            assert_eq!(
-                account.clone().address().len() > 0,
-                true,
-                "address is not set"
-            );
-            assert_eq!(account.clone().network, "testnet", "network is not set");
-            assert_eq!(
-                account.clone().path_to_pk.is_file(),
-                true,
-                "path is not a file"
-            );
-            assert_eq!(
-                account.clone().path_to_pk.is_dir(),
-                false,
-                "path is not a file"
-            );
-            cleanup(original_dir);
+        let mut account: Profile = Profile::default();
+        account
+            .load_account_from_path_to_pk(
+                Some("testnet"),
+                &temp_dir
+                    .path()
+                    .join("00d277aa1bf5702ab9fc690b04bd68b5a981095530.pk"),
+            )
+            .unwrap();
+        assert_eq!(
+            account.clone().private_key().len() > 0,
+            true,
+            "private key is not set"
+        );
+        assert_eq!(
+            account.clone().address().len() > 0,
+            true,
+            "address is not set"
+        );
+        assert_eq!(account.clone().network, "testnet", "network is not set");
+        assert_eq!(
+            account.clone().path_to_pk.is_file(),
+            true,
+            "path is not a file"
+        );
+        assert_eq!(
+            account.clone().path_to_pk.is_dir(),
+            false,
+            "path is not a file"
+        );
+        cleanup(original_dir);
     }
 }

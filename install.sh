@@ -39,6 +39,40 @@ else
     echo "Java (OpenJDK 17) is installed."
 fi
 
+#check if Git is installed
+if ! command -v git &> /dev/null; then
+    echo "Git is required but not installed."
+    echo "Please install Git: https://git-scm.com/downloads"
+    exit 1
+else
+    echo "Git is installed."
+fi
+
+#check if Rust is installed and if the version is 1.86
+if ! command -v rustup &> /dev/null; then
+    echo "Rust is required but not installed."
+    echo "Please install Rust: https://rustup.rs/"
+    exit 1
+else
+    echo "Rust is installed."
+    if ! rustup show | grep -q "1.86"; then
+        echo "Rust version is not 1.86."
+        echo "Please downgrade to 1.86: rustup install 1.86"
+        exit 1
+    else
+        echo "Rust version is 1.86."
+    fi
+fi
+
+#check if wasm32-unknown-unknown is set for rust
+if ! rustup target list | grep -q "wasm32-unknown-unknown"; then
+    echo "wasm32-unknown-unknown is not set for Rust."
+    echo "Please add the target: rustup target add wasm32-unknown-unknown"
+    exit 1
+else
+    echo "wasm32-unknown-unknown is set for Rust."
+fi
+
 # Install cargo-partisia-contract if not already installed
 if ! command -v cargo pbc &> /dev/null; then
     echo "Installing cargo-partisia-contract..."
@@ -48,6 +82,8 @@ else
 fi
 
 
+
+echo "Building partizee..."
 # Build
 cargo build --release --manifest-path Cargo.toml
 

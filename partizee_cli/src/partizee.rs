@@ -1,23 +1,23 @@
 use clap::Parser;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::pbc_commands::{pbc_create_new_account, pbc_create_new_wallet};
-use crate::utils::utils::{assert_partizee_project,};
+use crate::utils::utils::{assert_partizee_project, get_address_from_pk};
 
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
 use crate::commands::new::{NewProject, ProjectConfig};
 use crate::utils::clap_cli::{Arguments, Commands, ProfileSubcommands};
-use crate::utils::utils::{get_address_from_pk};
 use crate::utils::fs_nav::{get_all_contract_names, id_pbc_path};
 use crate::utils::menus::{
-    compile_menu, create_new_pbc_account_menu, deploy_menu, create_new_wallet_menu, new_project_menu, select_pk_menu
+    compile_menu, create_new_pbc_account_menu, create_new_wallet_menu, deploy_menu,
+    new_project_menu, select_pk_menu,
 };
-
+use crate::utils::constants::DEFAULT_NETWORK;
 
 #[allow(unused_variables, unused_assignments)]
 pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
@@ -102,7 +102,12 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 
             if contract_names.is_none() {
                 contracts_to_deploy = get_all_contract_names();
-                if contracts_to_deploy.is_none()  || contracts_to_deploy.as_ref().unwrap_or(&Vec::new()).is_empty(){
+                if contracts_to_deploy.is_none()
+                    || contracts_to_deploy
+                        .as_ref()
+                        .unwrap_or(&Vec::new())
+                        .is_empty()
+                {
                     return Err("No contracts found in project, if you have contracts in your project, please compile by running `partizee compile`".into());
                 }
             } else {
@@ -130,7 +135,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             if interactive {
                 let menu_args: DeployConfigs = deploy_menu(config)?;
                 let deployer_args: Deployer = Deployer {
-                    network: menu_args.network.unwrap_or("".to_string()),
+                    network: menu_args.network.unwrap_or(DEFAULT_NETWORK.to_string()),
                     contract_names: menu_args.contract_names,
                     deployer_args: menu_args.deployer_args.unwrap_or(HashMap::new()),
                     path_to_pk: menu_args.path_to_pk.unwrap_or(PathBuf::from("")),
@@ -144,7 +149,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     final_pk_path = pk_path;
                 } else {
                     // if passed in path is a file, use it, otherwise select a new account
-                    if config.path_to_pk.as_ref().unwrap().is_file() {   
+                    if config.path_to_pk.as_ref().unwrap().is_file() {
                         final_pk_path = config.path_to_pk.clone().unwrap();
                     } else {
                         let pk_path: PathBuf = select_pk_menu()?;
@@ -152,7 +157,7 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 let deployer_args: Deployer = Deployer {
-                    network: config.network.unwrap_or("".to_string()),
+                    network: config.network.unwrap_or(DEFAULT_NETWORK.to_string()),
                     contract_names: config.contract_names,
                     deployer_args: config.deployer_args.unwrap_or(HashMap::new()),
                     path_to_pk: final_pk_path,
@@ -171,19 +176,19 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 if shared_args.network.is_none() {
                     interactive = true;
                 }
+                let wallet_exists: bool = id_pbc_path().is_some();
+                if !wallet_exists {
+                    let network: String = create_new_wallet_menu()?;
+                    if network.len() > 0 {
+                        pbc_create_new_wallet(&network)?;
+                    } else {
+                        return Err("No wallet created".into());
+                    }
+                }
                 if interactive {
                     let create_pbc_account: String = create_new_pbc_account_menu()?;
                     if create_pbc_account.len() > 0 {
                         // check if wallet already exists
-                        let wallet_exists: bool = id_pbc_path().is_some();
-                        if !wallet_exists {
-                           let network: String = create_new_wallet_menu()?;
-                           if network.len() > 0 {
-                            pbc_create_new_wallet(&network)?;
-                           } else {
-                            return Err("No wallet created".into());
-                           }
-                        }
                         pbc_create_new_account(&create_pbc_account)?;
                     }
                 } else {
@@ -224,10 +229,11 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             }
             ProfileSubcommands::ProfileMintGas { shared_args } => {
                 let mut interactive: bool = shared_args.interactive;
-                if shared_args.address.is_none() &&
-                shared_args.network.is_none() &&
-                shared_args.private_key.is_none() &&
-                shared_args.path.is_none() {
+                if shared_args.address.is_none()
+                    && shared_args.network.is_none()
+                    && shared_args.private_key.is_none()
+                    && shared_args.path.is_none()
+                {
                     interactive = true;
                 }
 
@@ -241,20 +247,20 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     let account: Profile = Profile::new(account_config).unwrap();
                     account.mint_gas()?;
-        
                 } else {
                     let mut address: Option<String> = shared_args.address;
-                    let network: Option<String> = Some(shared_args.network.unwrap_or("testnet".to_string()));
+                    let network: Option<String> =
+                        Some(shared_args.network.unwrap_or("testnet".to_string()));
                     let mut private_key: Option<String> = shared_args.private_key;
-                    let mut pk_path: Option<PathBuf> = shared_args.path.map(|path| PathBuf::from(path));
+                    let mut pk_path: Option<PathBuf> =
+                        shared_args.path.map(|path| PathBuf::from(path));
 
                     match (address.is_some(), private_key.is_some(), pk_path.is_some()) {
                         (false, true, false) => {
                             address = Some(get_address_from_pk(&private_key.clone().unwrap())?);
-
                         }
                         (true, false, false) => {
-                            return Err("Cannot derive private key from address alone".into());  
+                            return Err("Cannot derive private key from address alone".into());
                         }
                         (false, false, false) => {
                             pk_path = Some(select_pk_menu().expect("Failed to select account"));
@@ -264,7 +270,6 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                         (_, _, true) => {
                             private_key = Some(fs::read_to_string(&pk_path.clone().unwrap())?);
                             address = Some(get_address_from_pk(&private_key.clone().unwrap())?);
-
                         }
                         _ => {
                             return Err("Invalid arguments".into());
@@ -316,7 +321,7 @@ fn parse_deploy_args(
             current_args.push(sub_vector.clone());
         }
         for (index, arg_name) in arg_names.iter().enumerate() {
-            contract_map.insert(arg_name.clone(), current_args[index].clone());
+            contract_map.insert(arg_name.to_lowercase(), current_args[index].clone());
         }
         return Some(contract_map);
     } else {
