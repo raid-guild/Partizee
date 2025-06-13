@@ -404,13 +404,13 @@ pub fn select_contracts_menu() -> Result<Vec<String>, Box<dyn std::error::Error>
     intro(DELIM)?;
     intro("Partizee - Select contracts")?;
     intro(DELIM)?;
-    let select_contracts: Result<_, std::io::Error> = confirm(
+    let select_contracts: Result<bool, std::io::Error> = confirm(
         "Would you like to select contracts? (yes will open a menu to select contracts, no will deploy all contracts in the contracts directory)",
     )
     .initial_value(false)
     .interact();
-    let all_contract_names: Vec<String> = get_all_contract_names().unwrap();
-    if select_contracts.unwrap() {
+    let all_contract_names: Vec<String> = get_all_contract_names().unwrap_or(Vec::new());
+    if select_contracts.unwrap_or(false) {
         
         let mut all_contracts_tuples: Vec<(String, String, String)> = all_contract_names
             .iter()
