@@ -10,8 +10,14 @@ use std::{
 };
 use tempfile::Builder;
 
-/// print output to console
-/// return json output
+/// Prints command output to console and attempts to parse as JSON
+/// 
+/// # Arguments
+/// * `function_name` - Name of function for logging
+/// * `output` - Command output to process
+/// 
+/// # Returns
+/// * `Result<T>` - Parsed JSON output if successful
 pub fn print_output<T: DeserializeOwned>(
     function_name: &str,
     output: &Output,
@@ -25,6 +31,11 @@ pub fn print_output<T: DeserializeOwned>(
     }
 }
 
+/// Verifies that current directory is a Partizee project
+/// Checks for workspace root with required structure
+/// 
+/// # Returns
+/// * `Result<()>` - Ok if valid project, Error otherwise
 pub fn assert_partizee_project() -> Result<(), Box<dyn std::error::Error>> {
     let partizee_project: bool = find_workspace_root().is_some();
     if !partizee_project {
@@ -33,8 +44,13 @@ pub fn assert_partizee_project() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// print error to console
-/// return error
+/// Prints error output to console and returns error
+/// 
+/// # Arguments
+/// * `output` - Command output containing error
+/// 
+/// # Returns
+/// * `Result<T>` - Error with stderr message
 pub fn print_error<T: DeserializeOwned>(output: &Output) -> Result<T, Box<dyn std::error::Error>> {
     let line = String::from_utf8_lossy(&output.stderr).to_string();
     eprintln!("STDERR:\n{}", line);
@@ -44,6 +60,15 @@ pub fn print_error<T: DeserializeOwned>(output: &Output) -> Result<T, Box<dyn st
     )));
 }
 
+/// Loads account details from a private key file
+/// Validates private key and address
+/// 
+/// # Arguments
+/// * `path` - Path to private key file
+/// * `network` - Network to use
+/// 
+/// # Returns
+/// * `Result<Profile>` - Account profile if successful
 pub fn load_account_from_pk_file(
     path: &PathBuf,
     network: &str,
@@ -97,6 +122,13 @@ pub fn load_account_from_pk_file(
     Ok(account)
 }
 
+/// Validates blockchain address length
+/// 
+/// # Arguments
+/// * `address` - Address to validate
+/// 
+/// # Returns
+/// * `Result<()>` - Ok if valid length, Error otherwise
 pub fn assert_address_length(address: &str) -> Result<(), Box<dyn std::error::Error>> {
     if address.len() != 42 {
         return Err("assert_address_length: Invalid address".into());
@@ -104,6 +136,13 @@ pub fn assert_address_length(address: &str) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+/// Validates private key length
+/// 
+/// # Arguments
+/// * `private_key` - Private key to validate
+/// 
+/// # Returns
+/// * `Result<()>` - Ok if valid length, Error otherwise
 pub fn assert_private_key_length(private_key: &str) -> Result<(), Box<dyn std::error::Error>> {
     if private_key.len() != 64 {
         return Err("assert_private_key_length: Invalid private key".into());
@@ -111,7 +150,13 @@ pub fn assert_private_key_length(private_key: &str) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-#[allow(dead_code)]
+/// Gets account address from private key file path
+/// 
+/// # Arguments
+/// * `path` - Path to private key file
+/// 
+/// # Returns
+/// * `Result<String>` - Account address if successful
 pub fn get_account_address_from_path(path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
     if path.is_file() {
         // get account address from path name account is the last word in path - remove extension path could be absolute or relative
@@ -134,6 +179,14 @@ pub fn get_account_address_from_path(path: &PathBuf) -> Result<String, Box<dyn s
     }
 }
 
+/// Derives blockchain address from private key
+/// Uses temporary file to call pbc command
+/// 
+/// # Arguments
+/// * `private_key` - Private key to derive address from
+/// 
+/// # Returns
+/// * `Result<String>` - Derived address if successful
 pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::error::Error>> {
     // validate pk length
     assert_private_key_length(private_key)?;
@@ -176,6 +229,14 @@ pub fn get_address_from_pk(private_key: &str) -> Result<String, Box<dyn std::err
     }
 }
 
+/// Validates that address matches private key
+/// 
+/// # Arguments
+/// * `address` - Address to validate
+/// * `private_key` - Private key to check against
+/// 
+/// # Returns
+/// * `Result<bool>` - True if valid, Error if validation fails
 pub fn address_is_valid(
     address: &str,
     private_key: &str,
@@ -198,6 +259,13 @@ pub fn address_is_valid(
     }
 }
 
+/// Creates private key file in workspace root
+/// 
+/// # Arguments
+/// * `private_key` - Private key to save
+/// 
+/// # Returns
+/// * `Result<PathBuf>` - Path to created file if successful
 pub fn create_pk_file(private_key: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let root_path: PathBuf =
         find_workspace_root().expect("create_pk_file: Failed to find workspace root");
@@ -208,7 +276,14 @@ pub fn create_pk_file(private_key: &str) -> Result<PathBuf, Box<dyn std::error::
         .map_err(|e| format!("Failed to write private key file: {}", e))?;
     Ok(pk_file)
 }
-#[allow(dead_code)]
+
+/// Extracts public key from command output
+/// 
+/// # Arguments
+/// * `std_output` - Command output to parse
+/// 
+/// # Returns
+/// * `String` - Extracted public key
 pub fn trim_public_key(std_output: &Output) -> String {
     let line = String::from_utf8_lossy(&std_output.stdout).to_string();
     let public_key = line
@@ -222,6 +297,14 @@ pub fn trim_public_key(std_output: &Output) -> String {
     public_key
 }
 
+/// Parses deployment arguments into contract-specific arguments
+/// 
+/// # Arguments
+/// * `deploy_args` - Optional vector of deployment arguments
+/// * `contracts_to_deploy` - List of contracts being deployed
+/// 
+/// # Returns
+/// * `Option<HashMap<String, Vec<String>>>` - Map of contract names to their arguments
 pub fn parse_deploy_args(
     deploy_args: Option<Vec<String>>,
     contracts_to_deploy: Vec<String>,
@@ -254,7 +337,9 @@ pub fn parse_deploy_args(
             current_args.push(sub_vector.clone());
         }
         for (index, arg_name) in arg_names.iter().enumerate() {
-            contract_map.insert(arg_name.clone(), current_args[index].clone());
+            if current_args[index].len() > 0 {
+                contract_map.insert(arg_name.clone(), current_args[index].clone());
+            }
         }
         return Some(contract_map);
     } else {
@@ -262,6 +347,11 @@ pub fn parse_deploy_args(
     }
 }
 
+/// Sets up test environment with mock files and directories
+/// Creates temporary directory with Partizee project structure
+/// 
+/// # Returns
+/// * `(TempDir, PathBuf, PathBuf)` - Temp directory, path, and original directory
 #[cfg(test)]
 pub fn setup_test_environment() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let temp_dir = tempfile::tempdir().unwrap();

@@ -123,12 +123,17 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
             // if interactive, get options from interactive menu and pass deployer_args as needed
             if use_interactive {
                 let menu_args: DeployConfigs = deploy_menu(config)?;
-                let deployer_args: Deployer = Deployer {
-                    network: menu_args.network.unwrap_or(DEFAULT_NETWORK.to_string()),
-                    contract_names: menu_args.contract_names,
-                    deployer_args: menu_args.deployer_args.unwrap_or(HashMap::new()),
-                    path_to_pk: menu_args.path_to_pk.unwrap_or(PathBuf::from("")),
+                let mut deployer_args: Deployer = Deployer {
+                    network: menu_args.network.clone().unwrap_or(DEFAULT_NETWORK.to_string()),
+                    contract_names: menu_args.contract_names.clone(),
+                    deployer_args: menu_args.deployer_args.clone().unwrap_or(HashMap::new()),
+                    path_to_pk: menu_args.path_to_pk.unwrap_or(PathBuf::from("")).clone(),
                 };
+                //merge deployer_args with menu_args.deployer_args
+                let mut deployer_args_hashmap: HashMap<String, Vec<String>> = HashMap::new();
+                deployer_args_hashmap.extend(menu_args.deployer_args.unwrap_or(HashMap::new()));
+                deployer_args_hashmap.extend(deployer_args.deployer_args);
+                deployer_args.deployer_args = deployer_args_hashmap;
 
                 println!("deployer_args: {:#?}", deployer_args);
 
