@@ -14,6 +14,13 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
+/// Configuration for creating a new user profile
+/// 
+/// # Fields
+/// * `network` - Optional network to use (e.g. testnet, mainnet)
+/// * `address` - Optional blockchain address
+/// * `private_key` - Optional private key
+/// * `path_to_pk` - Optional path to private key file
 pub struct ProfileConfig {
     pub network: Option<String>,
     pub address: Option<String>,
@@ -21,6 +28,13 @@ pub struct ProfileConfig {
     pub path_to_pk: Option<PathBuf>,
 }
 
+/// Represents a user's blockchain account profile
+/// 
+/// # Fields
+/// * `network` - Network the account is on
+/// * `address` - Blockchain address
+/// * `private_key` - Private key for the account
+/// * `path_to_pk` - Path to private key file
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {
     pub network: String,
@@ -31,6 +45,13 @@ pub struct Profile {
 
 #[allow(dead_code)]
 impl Default for Profile {
+    /// Creates a default profile
+    /// 
+    /// Attempts to load existing account from .pk file
+    /// If no account exists, creates new wallet and account
+    /// 
+    /// # Returns
+    /// * `Profile` - New profile instance
     fn default() -> Self {
         let pk_files: Vec<PathBuf> = get_pk_files();
         if pk_files.len() > 0 {
@@ -82,6 +103,16 @@ impl Default for Profile {
 
 #[allow(dead_code)]
 impl Profile {
+    /// Creates a new profile with specified configuration
+    /// 
+    /// Can load from existing .pk file or create new account
+    /// Validates address and private key if provided
+    /// 
+    /// # Arguments
+    /// * `account_config` - Configuration for new profile
+    /// 
+    /// # Returns
+    /// * `Result<Profile>` - New profile if successful
     pub fn new(account_config: ProfileConfig) -> Result<Self, Box<dyn std::error::Error>> {
         // initialize new account
         let new_profile: Self;
@@ -208,6 +239,14 @@ impl Profile {
         Ok(new_profile)
     }
 
+    /// Loads account details from a private key file
+    /// 
+    /// # Arguments
+    /// * `network` - Optional network to use
+    /// * `path_to_pk` - Path to private key file
+    /// 
+    /// # Returns
+    /// * `Result<()>` - Ok if load succeeds
     pub fn load_account_from_path_to_pk(
         &mut self,
         network: Option<&str>,
@@ -229,6 +268,14 @@ impl Profile {
         Ok(())
     }
 
+    /// Updates the profile's private key and derives new address
+    /// 
+    /// # Arguments
+    /// * `private_key` - New private key
+    /// * `network` - Optional network to use
+    /// 
+    /// # Returns
+    /// * `Result<()>` - Ok if update succeeds
     pub fn update_private_key(
         &mut self,
         private_key: &str,
@@ -246,14 +293,26 @@ impl Profile {
         Ok(())
     }
 
+    /// Updates the profile's blockchain address
+    /// 
+    /// # Arguments
+    /// * `address` - New blockchain address
     pub fn update_address(&mut self, address: &str) {
         self.address = address.to_string();
     }
 
+    /// Updates the profile's network
+    /// 
+    /// # Arguments
+    /// * `network` - New network name
     pub fn update_network(&mut self, network: &str) {
         self.network = network.to_string();
     }
 
+    /// Mints gas for the account on testnet
+    /// 
+    /// # Returns
+    /// * `Result<()>` - Ok if minting succeeds
     pub fn mint_gas(&self) -> Result<(), Box<dyn std::error::Error>> {
         // can only mint gas on testnet
         let network_command: String = format!("--net=testnet");
@@ -273,14 +332,26 @@ impl Profile {
         Ok(())
     }
 
+    /// Gets the profile's private key
+    /// 
+    /// # Returns
+    /// * `String` - Private key
     pub fn private_key(&self) -> String {
         self.private_key.clone()
     }
 
+    /// Gets the profile's blockchain address
+    /// 
+    /// # Returns
+    /// * `String` - Blockchain address
     pub fn address(&self) -> String {
         self.address.clone()
     }
 
+    /// Shows account details from the blockchain
+    /// 
+    /// # Returns
+    /// * `Result<String>` - Account details if successful
     pub fn show_account(&self) -> Result<String, Box<dyn Error + 'static>> {
         let network_command = format!("--net={}", &self.network);
         let shown_account: Output = Command::new("cargo")

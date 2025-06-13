@@ -6,8 +6,14 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use walkdir::WalkDir;
 
-// find the workspace root directory
-// uses multithreading to speed up the process of searching nearby directories for a workspace root
+/// Finds the workspace root directory by searching for a Cargo.toml with [workspace] section
+/// and required project structure (rust/contracts and frontend directories)
+/// 
+/// Uses multithreading to speed up the process of searching nearby directories
+/// Searches up to 3 parent directories deep
+/// 
+/// # Returns
+/// * `Option<PathBuf>` - Path to workspace root if found, None otherwise
 pub fn find_workspace_root() -> Option<PathBuf> {
     let mut current_folder: PathBuf = env::current_dir().ok()?;
     for _ in 0..3 {
@@ -84,6 +90,14 @@ pub fn find_workspace_root() -> Option<PathBuf> {
     None
 }
 
+/// Finds a specific directory by name within the current directory or its parents
+/// 
+/// # Arguments
+/// * `current_folder` - Starting directory to search from
+/// * `target_folder` - Name of directory to find
+/// 
+/// # Returns
+/// * `Option<PathBuf>` - Path to target directory if found, None otherwise
 pub fn find_dir(current_folder: &PathBuf, target_folder: &str) -> Option<PathBuf> {
     let mut current_folder: PathBuf = current_folder.clone();
     let target_folder: PathBuf = PathBuf::from(target_folder);
@@ -106,8 +120,14 @@ pub fn find_dir(current_folder: &PathBuf, target_folder: &str) -> Option<PathBuf
     None
 }
 
-/// find paths with extension in folder or nearby folders
-/// return vector of paths with selected extension
+/// Finds all files with a specific extension in the current directory or nearby directories
+/// 
+/// # Arguments
+/// * `starting_path` - Directory to start searching from
+/// * `extension` - File extension to search for (without the dot)
+/// 
+/// # Returns
+/// * `Vec<PathBuf>` - Vector of paths to matching files
 pub fn find_files_with_extension(starting_path: &PathBuf, extension: &str) -> Vec<PathBuf> {
     let mut matches = Vec::new();
     let mut current_path: PathBuf = starting_path.clone();
@@ -136,8 +156,14 @@ pub fn find_files_with_extension(starting_path: &PathBuf, extension: &str) -> Ve
     matches
 }
 
-/// find path with name in folder
-/// return vector of paths
+/// Finds all files and directories containing a specific name
+/// 
+/// # Arguments
+/// * `starting_path` - Directory to start searching from
+/// * `name` - Name to search for (case insensitive)
+/// 
+/// # Returns
+/// * `Vec<PathBuf>` - Vector of paths to matching files/directories
 pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf> {
     let mut matches = Vec::new();
     let mut current_path: PathBuf = PathBuf::from(starting_path);
@@ -166,7 +192,12 @@ pub fn find_paths_with_name(starting_path: &PathBuf, name: &str) -> Vec<PathBuf>
     }
     matches
 }
-// to be used during deployment to get all contract names
+
+/// Gets all contract names from compiled contract files
+/// Searches for .pbc, .zkwa, and .wasm files in the release directory
+/// 
+/// # Returns
+/// * `Option<Vec<String>>` - Vector of unique contract names if found, None if no contracts exist
 pub fn get_all_contract_names() -> Option<Vec<String>> {
     let root_path: PathBuf =
         find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap()));
@@ -211,6 +242,11 @@ pub fn get_all_contract_names() -> Option<Vec<String>> {
     }
 }
 
+/// Finds all .pk (private key) files in the workspace and parent directories
+/// Searches up to 5 parent directories deep if no files found in workspace
+/// 
+/// # Returns
+/// * `Vec<PathBuf>` - Vector of paths to .pk files, with duplicates removed
 pub fn get_pk_files() -> Vec<PathBuf> {
     let root_path: PathBuf =
         find_workspace_root().unwrap_or(PathBuf::from(env::current_dir().unwrap()));
@@ -243,6 +279,11 @@ pub fn get_pk_files() -> Vec<PathBuf> {
     pk_files
 }
 
+/// Gets the path to the PBC identity file
+/// Looks for id_pbc file in the user's home directory under .pbc folder
+/// 
+/// # Returns
+/// * `Option<PathBuf>` - Path to id_pbc file if it exists, None otherwise
 pub fn id_pbc_path() -> Option<PathBuf> {
     // Get the user's home directory
     let mut pbc_dir: PathBuf = dirs::home_dir()?;

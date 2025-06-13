@@ -4,12 +4,20 @@ use crate::commands::new::ProjectConfig;
 use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::fs_nav::{get_all_contract_names, get_pk_files};
 use crate::utils::utils::assert_partizee_project;
-use cliclack::{clear_screen, confirm, input, intro, outro, select};
+use cliclack::{clear_screen, confirm, input, intro, outro, select, multiselect};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub const DELIM: &str = "==================================================";
 
+/// Creates a new project configuration through an interactive menu
+/// 
+/// # Arguments
+/// * `name` - Optional project name. If None, user will be prompted
+/// * `output_dir` - Optional output directory. If None, user will be prompted
+/// 
+/// # Returns
+/// * `Result<ProjectConfig>` - Project configuration with name and output directory
 pub fn new_project_menu(
     name: Option<String>,
     output_dir: Option<String>,
@@ -60,6 +68,13 @@ pub fn new_project_menu(
     })
 }
 
+/// Interactive menu for configuring contract compilation settings
+/// 
+/// # Arguments
+/// * `config` - Initial compiler configuration
+/// 
+/// # Returns
+/// * `Result<ProjectCompiler>` - Updated compiler configuration with build args and files
 pub fn compile_menu(
     config: ProjectCompiler,
 ) -> Result<ProjectCompiler, Box<dyn std::error::Error>> {
@@ -252,6 +267,13 @@ pub fn compile_menu(
     })
 }
 
+/// Interactive menu for configuring contract deployment settings
+/// 
+/// # Arguments
+/// * `config` - Initial deployment configuration
+/// 
+/// # Returns
+/// * `Result<DeployConfigs>` - Updated deployment configuration with network, contracts and args
 pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
@@ -277,41 +299,11 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     } else {
         network = config.network;
     };
-
+    intro(format!("Select contracts to deploy{:?}", config.contract_names))?;
     if config.contract_names.is_empty() {
-        let use_custom_names = confirm("Would you like to specify specific names of the contracts you'd like to deploy? \n (if No: we'll deploy all contracts in the contracts directory)")
-        .initial_value(false)
-        .interact()?;
-        if use_custom_names {
-            loop {
-                let custom_name: String = input(
-                    "Enter the name of on of the contracts you'd like to deploy. \n e.g. counter",
-                )
-                .placeholder("counter")
-                .validate(|input: &String| {
-                    if input.trim().is_empty() {
-                        Err("Need to specify a name of the contract to deploy")
-                    } else {
-                        Ok(())
-                    }
-                })
-                .interact()?;
-                custom_names.push(custom_name);
-                let another: bool = confirm("Enter another contract name? (y/n)")
-                    .initial_value(false)
-                    .interact()?;
-                if !another {
-                    break;
-                }
-            }
-        } else {
-            // if no custom names, deploy all contracts in the contracts directory
-            if let Some(all_contract_names) = get_all_contract_names() {
-                custom_names = all_contract_names;
-            } else {
-                return Err("No contracts found in the contracts directory".into());
-            }
-        }
+
+            custom_names = select_contracts_menu()?;
+       
     } else {
         custom_names = config.contract_names;
     }
@@ -319,7 +311,7 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     // get deployer args for each contract
     for name in custom_names.iter() {
         let deployer_args: Vec<String> = get_deployer_args(name);
-        deployer_args_mapping.insert(name.clone(), deployer_args);
+        deployer_args_mapping.insert(name.to_lowercase(), deployer_args);
     }
 
     if config.path_to_pk.is_some() {
@@ -342,6 +334,13 @@ pub fn deploy_menu(config: DeployConfigs) -> Result<DeployConfigs, Box<dyn std::
     })
 }
 
+/// Prompts user for deployer arguments for a specific contract
+/// 
+/// # Arguments
+/// * `contract_name` - Name of the contract to get arguments for
+/// 
+/// # Returns
+/// * `Vec<String>` - List of deployer arguments
 fn get_deployer_args(contract_name: &str) -> Vec<String> {
     let mut deployer_args_vec: Vec<String> = Vec::new();
     let add_deployer_args = confirm(format!("Does the {} contract need deployer arguments? \n Please enter them one at a time in the order needed for initialization)", contract_name))
@@ -377,6 +376,10 @@ fn get_deployer_args(contract_name: &str) -> Vec<String> {
     deployer_args_vec
 }
 
+/// Interactive menu to confirm force creation of a new wallet
+/// 
+/// # Returns
+/// * `Result<bool>` - True if user confirms force creation
 pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
@@ -392,6 +395,48 @@ pub fn force_new_wallet_menu() -> Result<bool, Box<dyn std::error::Error>> {
     return Ok(force_create.unwrap());
 }
 
+/// Interactive menu for selecting contracts to deploy
+/// 
+/// # Returns
+/// * `Result<Vec<String>>` - List of selected contract names
+pub fn select_contracts_menu() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    clear_screen()?;
+    intro(DELIM)?;
+    intro("Partizee - Select contracts")?;
+    intro(DELIM)?;
+    let select_contracts: Result<_, std::io::Error> = confirm(
+        "Would you like to select contracts? (yes will open a menu to select contracts, no will deploy all contracts in the contracts directory)",
+    )
+    .initial_value(false)
+    .interact();
+    let all_contract_names: Vec<String> = get_all_contract_names().unwrap();
+    if select_contracts.unwrap() {
+        
+        let mut all_contracts_tuples: Vec<(String, String, String)> = all_contract_names
+            .iter()
+            .enumerate()
+            .map(|(_, name)| (name.clone(), name.clone(), name.clone()))
+            .collect();
+
+        all_contracts_tuples.push(("all".to_string(), "all".to_string(), "all".to_string()));
+        intro("Push spacebar to select")?;
+        let contracts: Vec<String> = multiselect("Select contracts")
+            .items(&all_contracts_tuples)
+            .interact()?;
+        
+        if contracts.contains(&"all".to_string()) {
+            return Ok(all_contract_names);
+        }
+        return Ok(contracts);
+    } else {
+        return Ok(all_contract_names);
+    }
+}
+
+/// Interactive menu for creating a new wallet
+/// 
+/// # Returns
+/// * `Result<String>` - Network name for the new wallet
 pub fn create_new_wallet_menu() -> Result<String, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
@@ -414,6 +459,10 @@ pub fn create_new_wallet_menu() -> Result<String, Box<dyn std::error::Error>> {
     return Err("No wallet created.".into());
 }
 
+/// Interactive menu for creating a custom profile
+/// 
+/// # Returns
+/// * `Result<Profile>` - New profile with custom settings
 pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
@@ -475,6 +524,11 @@ pub fn custom_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     let account: Profile = Profile::new(account_config).unwrap();
     Ok(account)
 }
+
+/// Interactive menu for creating a new PBC account
+/// 
+/// # Returns
+/// * `Result<String>` - Network name for the new account
 pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
@@ -495,6 +549,16 @@ pub fn create_new_pbc_account_menu() -> Result<String, Box<dyn std::error::Error
     Err("No account created.".into())
 }
 
+/// Helper function for optional input with validation
+/// 
+/// # Arguments
+/// * `prompt` - Input prompt text
+/// * `input_type` - Type of input for validation
+/// * `placeholder` - Placeholder text for input
+/// * `default` - Optional default value
+/// 
+/// # Returns
+/// * `Result<Option<String>>` - Optional input value
 fn input_optional(
     prompt: &str,
     input_type: &str,
@@ -552,6 +616,10 @@ fn input_optional(
     })
 }
 
+/// Interactive menu for creating a new profile
+/// 
+/// # Returns
+/// * `Result<Profile>` - New profile with selected settings
 pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> {
     clear_screen()?;
     intro(DELIM)?;
@@ -589,6 +657,10 @@ pub fn create_new_profile_menu() -> Result<Profile, Box<dyn std::error::Error>> 
     }
 }
 
+/// Interactive menu for selecting a private key file
+/// 
+/// # Returns
+/// * `Result<PathBuf>` - Path to selected private key file
 pub fn select_pk_menu() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // clear screen
     clear_screen()?;

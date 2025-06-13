@@ -6,16 +6,18 @@ use std::path::PathBuf;
 
 use crate::commands::user_profile::{Profile, ProfileConfig};
 use crate::utils::pbc_commands::{pbc_create_new_account, pbc_create_new_wallet};
-use crate::utils::utils::{assert_partizee_project, get_address_from_pk};
+
 
 use crate::commands::compile::ProjectCompiler;
 use crate::commands::deploy::{DeployConfigs, Deployer, DeploymentWithProfile};
 use crate::commands::new::{NewProject, ProjectConfig};
+
+use crate::utils::utils::{assert_partizee_project, get_address_from_pk, parse_deploy_args};
 use crate::utils::clap_cli::{Arguments, Commands, ProfileSubcommands};
-use crate::utils::fs_nav::{get_all_contract_names, id_pbc_path};
+use crate::utils::fs_nav::{id_pbc_path};
 use crate::utils::menus::{
     compile_menu, create_new_pbc_account_menu, create_new_wallet_menu, deploy_menu,
-    new_project_menu, select_pk_menu,
+    new_project_menu, select_pk_menu
 };
 use crate::utils::constants::DEFAULT_NETWORK;
 
@@ -86,44 +88,30 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut use_interactive: bool = interactive;
             // if all args are empty open interactive menu
-            if !interactive
-                && custom_net.is_none()
+            if  custom_net.is_none()
                 && contract_names.is_none()
                 && deploy_args.is_none()
                 && pk_path.is_none()
             {
                 use_interactive = true;
             }
+
             let mut deployer: DeploymentWithProfile;
 
             // if no contracts are provided, get all contract names from the project
             let mut contracts_to_deploy: Option<Vec<String>> = None;
-            // get list of all contract names
-
-            if contract_names.is_none() {
-                contracts_to_deploy = get_all_contract_names();
-                if contracts_to_deploy.is_none()
-                    || contracts_to_deploy
-                        .as_ref()
-                        .unwrap_or(&Vec::new())
-                        .is_empty()
-                {
-                    return Err("No contracts found in project, if you have contracts in your project, please compile by running `partizee compile`".into());
-                }
-            } else {
+            
                 contracts_to_deploy = contract_names;
-            }
 
             let mut deployer_args_hashmap: Option<HashMap<String, Vec<String>>> = None;
+            if deploy_args.is_some() {
             let parsed_deploy_args: Option<HashMap<String, Vec<String>>> = parse_deploy_args(
                 deploy_args,
                 contracts_to_deploy.as_ref().unwrap_or(&Vec::new()).clone(),
             );
-            if contracts_to_deploy.is_some() {
-                deployer_args_hashmap = parsed_deploy_args;
-            } else {
-                deployer_args_hashmap = None;
-            }
+            deployer_args_hashmap = parsed_deploy_args;
+           }
+
             // create a new DeployConfigs with the provided args
             let config = DeployConfigs {
                 network: custom_net,
@@ -131,8 +119,9 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 deployer_args: deployer_args_hashmap,
                 path_to_pk: pk_path.clone().map(|path| PathBuf::from(path)),
             };
+
             // if interactive, get options from interactive menu and pass deployer_args as needed
-            if interactive {
+            if use_interactive {
                 let menu_args: DeployConfigs = deploy_menu(config)?;
                 let deployer_args: Deployer = Deployer {
                     network: menu_args.network.unwrap_or(DEFAULT_NETWORK.to_string()),
@@ -140,6 +129,8 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                     deployer_args: menu_args.deployer_args.unwrap_or(HashMap::new()),
                     path_to_pk: menu_args.path_to_pk.unwrap_or(PathBuf::from("")),
                 };
+
+                println!("deployer_args: {:#?}", deployer_args);
 
                 deployer = DeploymentWithProfile::new(deployer_args);
             } else {
@@ -164,7 +155,6 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 deployer = DeploymentWithProfile::new(deployer_args);
             }
-            println!("Deploying contracts with args: {:#?}", deployer);
             let result = deployer.deploy_contracts();
             if !result.is_ok() {
                 eprintln!("Contracts deployment failed");
@@ -287,46 +277,6 @@ pub fn partizee() -> Result<(), Box<dyn std::error::Error>> {
         },
     }
     Ok(())
-}
-
-fn parse_deploy_args(
-    deploy_args: Option<Vec<String>>,
-    contracts_to_deploy: Vec<String>,
-) -> Option<HashMap<String, Vec<String>>> {
-    if deploy_args.is_some() && contracts_to_deploy.len() > 0 {
-        let mut contract_map: HashMap<String, Vec<String>> = HashMap::new();
-        let mut arg_names: Vec<String> = Vec::new();
-        let mut current_args: Vec<Vec<String>> = Vec::new();
-        let mut sub_vector: Vec<String> = Vec::new();
-        let mut current_args_index: usize = 0;
-        for entry in deploy_args.unwrap().iter() {
-            // iterate through args and if an arg is a contract name, split there and take the next set of args to the next contract name
-            if contracts_to_deploy.contains(entry) {
-                arg_names.push(entry.clone());
-                current_args_index += 1;
-                if sub_vector.len() > 0 {
-                    current_args.push(sub_vector.clone());
-                }
-                sub_vector.clear();
-                continue;
-            } else if current_args_index > 0 {
-                sub_vector.push(entry.clone());
-                continue;
-            } else {
-                return None;
-            }
-        }
-
-        if sub_vector.len() > 0 {
-            current_args.push(sub_vector.clone());
-        }
-        for (index, arg_name) in arg_names.iter().enumerate() {
-            contract_map.insert(arg_name.to_lowercase(), current_args[index].clone());
-        }
-        return Some(contract_map);
-    } else {
-        return None;
-    }
 }
 
 #[cfg(test)]

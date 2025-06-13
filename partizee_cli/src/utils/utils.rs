@@ -1,6 +1,7 @@
 use crate::commands::user_profile::Profile;
 use crate::utils::fs_nav::find_workspace_root;
 use serde::de::DeserializeOwned;
+use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
 use std::{
     fs,
@@ -219,6 +220,46 @@ pub fn trim_public_key(std_output: &Output) -> String {
             String::new()
         });
     public_key
+}
+
+pub fn parse_deploy_args(
+    deploy_args: Option<Vec<String>>,
+    contracts_to_deploy: Vec<String>,
+) -> Option<HashMap<String, Vec<String>>> {
+    if deploy_args.is_some() && contracts_to_deploy.len() > 0 {
+        let mut contract_map: HashMap<String, Vec<String>> = HashMap::new();
+        let mut arg_names: Vec<String> = Vec::new();
+        let mut current_args: Vec<Vec<String>> = Vec::new();
+        let mut sub_vector: Vec<String> = Vec::new();
+        let mut current_args_index: usize = 0;
+        for entry in deploy_args.unwrap().iter() {
+            // iterate through args and if an arg is a contract name, split there and take the next set of args to the next contract name
+            if contracts_to_deploy.contains(entry) {
+                arg_names.push(entry.clone().to_lowercase());
+                current_args_index += 1;
+                if sub_vector.len() > 0 {
+                    current_args.push(sub_vector.clone());
+                }
+                sub_vector.clear();
+                continue;
+            } else if current_args_index > 0 {
+                sub_vector.push(entry.clone());
+                continue;
+            } else {
+                return None;
+            }
+        }
+
+        if sub_vector.len() > 0 {
+            current_args.push(sub_vector.clone());
+        }
+        for (index, arg_name) in arg_names.iter().enumerate() {
+            contract_map.insert(arg_name.clone(), current_args[index].clone());
+        }
+        return Some(contract_map);
+    } else {
+        return None;
+    }
 }
 
 #[cfg(test)]
