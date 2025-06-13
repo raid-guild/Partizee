@@ -10,24 +10,6 @@ Partizee is a CLI tool for creating and deploying full-stack Partisia dApps. It 
 
 ## Installation
 
-<<<<<<< Updated upstream
-### Quick Install
-
-You can use the provided install script to build and install the CLI to your local bin directory:
-
-```sh
-./install.sh
-```
-
-This will build the project and copy the `partizee` binary to `~/.local/bin/partizee` and add the tool to your local path.  
-You can make sure `~/.local/bin` is in your `PATH` by executing:
-
-```sh
-export PATH="$PATH:$HOME/.local/bin"
-```
-
-=======
->>>>>>> Stashed changes
 ### Prerequisites
 
 Ensure the following dependencies are installed before using Partizee:
