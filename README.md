@@ -46,7 +46,7 @@ then run the install script
 bash ./install.sh
 ```
 
-The binary will be located in `target/release/partizee`.
+The binary will be installed to `home/.bin/partizee`
 
 ## Usage
 
