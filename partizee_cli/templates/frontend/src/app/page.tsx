@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect } from "react";
-import { partisiaCrypto } from "partisia-crypto";
 import { useConnect, useAccount, useSignMessage, useWriteContract } from "@/hooks";
 import { CONTRACT_ADDRESS } from "@/utils/configs";
+import * as Abi from "@/utils/abi";
 
 export default function Home() {
   const { account, isConnected } = useAccount();
   const { connect, error: connectError } = useConnect();
-  const { signMessage, error: signMessageError } = useSignMessage();
-  const { writeContract, error: writeContractError } = useWriteContract();
+  const { signMessage, error: signMessageError, isSuccess: isSignMessageSuccess } = useSignMessage();
+  const { writeContract, error: writeContractError, isSuccess: isWriteContractSuccess } = useWriteContract();
 
   useEffect(() => {
     if (isConnected) {
@@ -24,15 +24,22 @@ export default function Home() {
     if (writeContractError) {
       console.error(writeContractError);
     }
-  }, [isConnected, connectError, signMessageError, writeContractError]);
+    if (isWriteContractSuccess) {
+      console.log("Contract written successfully");
+    }
+    if (isSignMessageSuccess) {
+      console.log("Message signed successfully");
+    }
+  }, [
+    isConnected, 
+    connectError, 
+    signMessageError, 
+    writeContractError, 
+    isWriteContractSuccess, 
+    isSignMessageSuccess,
+  ]);
 
-  const abi = partisiaCrypto.abi_system.Payload_ContractAbi
-  // const abi = partisiaCrypto.transaction.getContractAbi(CONTRACT_ADDRESS, 0)
-  
-  const payload = partisiaCrypto.structs.serializeToBuffer({
-    counter: 0,
-    increment_amount: 5,
-  }, ...abi).toString("hex")
+  const payload = Abi.incrementCounterByOne().toString("hex")
   
   return (
     <div className="flex flex-col items-center justify-center h-screen">

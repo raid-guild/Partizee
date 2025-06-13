@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "codegen-abi": "bun scripts/codegen-abi.ts"
   },
   "dependencies": {
     "@partisiablockchain/abi-client": "^5.190.0",
