@@ -1,6 +1,13 @@
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
+/// Configuration for compiling Partisia Blockchain contracts
+/// 
+/// # Fields
+/// * `files` - Optional list of specific contract files to compile
+/// * `path` - Optional path to workspace directory
+/// * `build_args` - Optional build arguments for cargo
+/// * `additional_args` - Optional additional arguments for the compiler
 #[derive(Debug)]
 pub struct ProjectCompiler {
     // extra files to include
@@ -11,6 +18,8 @@ pub struct ProjectCompiler {
 }
 
 impl Default for ProjectCompiler {
+    /// Creates a new ProjectCompiler with default settings
+    /// All fields are set to None
     #[inline]
     fn default() -> Self {
         let compile_args: ProjectCompiler = ProjectCompiler {
@@ -24,7 +33,13 @@ impl Default for ProjectCompiler {
 }
 
 impl ProjectCompiler {
-    /// create a new builder with default settings
+    /// Creates a new ProjectCompiler with the specified settings
+    /// 
+    /// # Arguments
+    /// * `compile_args` - Configuration for the compiler
+    /// 
+    /// # Returns
+    /// * `ProjectCompiler` - New compiler instance
     pub fn new(compile_args: ProjectCompiler) -> Self {
         // if files is not None, convert files to PathBuf
         Self {
@@ -35,6 +50,13 @@ impl ProjectCompiler {
         }
     }
 
+    /// Compiles the specified contracts using cargo
+    /// 
+    /// If no specific files are provided, compiles all contracts in the workspace
+    /// Uses release mode by default and applies any specified build/additional arguments
+    /// 
+    /// # Returns
+    /// * `Result<(), Box<dyn std::error::Error>>` - Ok if compilation succeeds, Error otherwise
     pub fn compile_contracts(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut output: Output;
         let mut args = vec![
@@ -95,6 +117,14 @@ impl ProjectCompiler {
     }
 }
 
+/// Extends a vector of arguments with optional additional arguments
+/// 
+/// # Arguments
+/// * `base_args` - Vector to extend
+/// * `new_args` - Optional vector of arguments to add
+/// 
+/// # Returns
+/// * `&mut Vec<String>` - Reference to the extended vector
 fn extend_args<'a>(
     base_args: &'a mut Vec<String>,
     new_args: Option<&Vec<String>>,
@@ -105,10 +135,19 @@ fn extend_args<'a>(
     base_args
 }
 
+/// Prints a success message for a compiled file
+/// 
+/// # Arguments
+/// * `file` - Name of the successfully compiled file
 pub fn print_success_message(file: &str) {
     println!("✅ Successfully compiled {}", file);
 }
 
+/// Prints an error message for a failed compilation
+/// 
+/// # Arguments
+/// * `file` - Name of the file that failed to compile
+/// * `error` - Error message from the compiler
 pub fn print_error_message(file: &str, error: &str) {
     eprintln!("❌ Failed to compile {}: {}", file, error);
 }

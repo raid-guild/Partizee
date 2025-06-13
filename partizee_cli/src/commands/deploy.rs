@@ -11,6 +11,14 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Configuration for deploying Partisia Blockchain contracts
+/// 
+/// # Fields
+/// * `contract_names` - List of contract names to deploy
+/// * `network` - Optional network to deploy to (e.g. testnet, mainnet)
+/// * `deployer_args` - Optional map of contract names to their deployment arguments
+/// * `path_to_pk` - Optional path to private key file
 #[derive(Debug, Clone)]
 pub struct DeployConfigs {
     pub contract_names: Vec<String>,
@@ -19,6 +27,13 @@ pub struct DeployConfigs {
     pub path_to_pk: Option<PathBuf>,
 }
 
+/// Represents a deployed contract with its metadata
+/// 
+/// # Fields
+/// * `name` - Name of the deployed contract
+/// * `address` - Blockchain address where contract was deployed
+/// * `args` - Arguments used during deployment
+/// * `timestamp` - Unix timestamp of deployment
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Deployment {
     pub name: String,
@@ -27,6 +42,13 @@ pub struct Deployment {
     pub timestamp: String,
 }
 
+/// Configuration for deploying contracts with network and account details
+/// 
+/// # Fields
+/// * `network` - Network to deploy to
+/// * `contract_names` - List of contracts to deploy
+/// * `deployer_args` - Map of contract names to their deployment arguments
+/// * `path_to_pk` - Path to private key file
 #[derive(Debug, Clone)]
 pub struct Deployer {
     pub network: String,
@@ -34,6 +56,12 @@ pub struct Deployer {
     pub deployer_args: HashMap<String, Vec<String>>,
     pub path_to_pk: PathBuf,
 }
+
+/// Combines deployment configuration with account profile
+/// 
+/// # Fields
+/// * `deploy_configs` - Deployment configuration
+/// * `account` - Account profile for deployment
 #[derive(Debug, Clone)]
 pub struct DeploymentWithProfile {
     deploy_configs: Deployer,
@@ -41,6 +69,8 @@ pub struct DeploymentWithProfile {
 }
 
 impl Default for DeployConfigs {
+    /// Creates default deployment configuration
+    /// Uses all available contracts and default network
     fn default() -> Self {
         let all_contract_names: Option<Vec<String>> = get_all_contract_names();
         Self {
@@ -54,6 +84,8 @@ impl Default for DeployConfigs {
 
 // default deployment with account, selects either the first account found or creates a new account if none are found
 impl Default for DeploymentWithProfile {
+    /// Creates default deployment with account
+    /// Selects first available account or creates new one if none found
     fn default() -> Self {
         let account: Profile = Profile::default();
         let mut deploy_project: DeployConfigs = DeployConfigs::default();
@@ -81,6 +113,13 @@ impl Default for DeploymentWithProfile {
 
 #[allow(dead_code)]
 impl DeploymentWithProfile {
+    /// Creates new deployment with specified configuration
+    /// 
+    /// # Arguments
+    /// * `deploy_config` - Deployment configuration
+    /// 
+    /// # Returns
+    /// * `DeploymentWithProfile` - New deployment instance
     pub fn new(deploy_config: Deployer) -> Self {
         let deployment_account: Profile =
             load_account_from_pk_file(&deploy_config.path_to_pk, &deploy_config.network)
@@ -91,7 +130,13 @@ impl DeploymentWithProfile {
         }
     }
 
-    /// deploy all contracts in the contracts directory
+    /// Deploys all specified contracts to the blockchain
+    /// 
+    /// Handles finding and loading contract files (.pbc, .abi, .wasm, .zkwa)
+    /// Saves deployment results to deployment-latest.json
+    /// 
+    /// # Returns
+    /// * `Result<(), Box<dyn std::error::Error>>` - Ok if all deployments succeed
     pub fn deploy_contracts(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let project_root: PathBuf = find_workspace_root().unwrap();
 
@@ -223,6 +268,18 @@ impl DeploymentWithProfile {
         Ok(())
     }
 
+    /// Deploys a single contract to the blockchain
+    /// 
+    /// # Arguments
+    /// * `name` - Name of contract to deploy
+    /// * `contract_pbc_path` - Optional path to .pbc file
+    /// * `contract_abi_path` - Optional path to .abi file
+    /// * `contract_wasm_path` - Optional path to .wasm file
+    /// * `contract_zkwa_path` - Optional path to .zkwa file
+    /// * `args` - Deployment arguments
+    /// 
+    /// # Returns
+    /// * `Result<Deployment>` - Deployment result with contract address
     pub fn deploy_contract(
         &mut self,
         name: &str,
@@ -232,6 +289,9 @@ impl DeploymentWithProfile {
         contract_zkwa_path: Option<PathBuf>,
         args: Vec<String>,
     ) -> Result<Deployment, Box<dyn std::error::Error>> {
+        println!("deploy_contract: {:#?}", contract_pbc_path);
+        println!("args: {:#?}", args);
+        println!("name: {:#?}", name);
         // cargo partisia-contract transaction deploy --gas 10000000 --privatekey YourProfileFile.pk your_compiled_contract_file.pbc + contract inputs separated by spaces (strings in quotes)
         let private_key_path: PathBuf = self.account.path_to_pk.clone();
         assert!(self.deploy_configs.network.len() > 0);
@@ -345,11 +405,25 @@ impl DeploymentWithProfile {
             return Err("Failed to deploy contract".into());
         }
     }
+    /// Gets deployment arguments for a specific contract
+    /// 
+    /// # Arguments
+    /// * `name` - Name of contract
+    /// 
+    /// # Returns
+    /// * `Option<Vec<String>>` - Deployment arguments if found
     pub fn get_deployer_args_for_name(&self, name: &str) -> Option<Vec<String>> {
         let name_lowercase = name.to_lowercase();
         self.deploy_configs.deployer_args.get(&name_lowercase).cloned()
     }
 
+    /// Builds a map of contract names to their file paths
+    /// 
+    /// # Arguments
+    /// * `paths` - Vector of contract file paths
+    /// 
+    /// # Returns
+    /// * `HashMap<String, PathBuf>` - Map of lowercase contract names to paths
     pub fn build_contract_file_map(paths: Vec<PathBuf>) -> HashMap<String, PathBuf> {
         let mut map = HashMap::new();
         for path in paths {
@@ -362,8 +436,16 @@ impl DeploymentWithProfile {
 
 }
 
-
-
+/// Saves deployment results to JSON file
+/// 
+/// Creates deployment history by renaming existing deployment-latest.json
+/// 
+/// # Arguments
+/// * `deployments` - Vector of deployment results
+/// * `project_root` - Root directory of project
+/// 
+/// # Returns
+/// * `Result<(), Box<dyn std::error::Error>>` - Ok if save succeeds
 fn save_deployments(
     deployments: Vec<Deployment>,
     project_root: &PathBuf,
